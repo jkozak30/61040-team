@@ -74,6 +74,52 @@
 
 ## (post-meeting) Plans and Decisions
 
-TODO
+### Decisions
 
-plans for next week and decisions made
+- Lost discussion context is the key bad situation we want to alleviate.
+- Video syncing and AI overviews are nice-to-haves.
+- **Test before problem framing:** YouTube restrictions, Panopto feasibility, and (perhaps) AI credits/integration.
+
+### Plans
+
+- **Prioritize the bad situation of lost discussion context.**
+  - Make sure discussion is well-supported, over syncing etc. features.
+  - Frame a bad situation as a user journey.
+  - **Make sure there is solid evidence for this bad situation in problem framing.** Why are people compelled to watch with others? What about rewatching, different playback speeds, etc.?
+- **Supporting sharing**
+  - Try to answer: how do we support sharing discussion/notes? Public vs. private?
+- **Testing key (shaky) features.**
+  - Embedding YouTube: what happens with ads? Should we block player/interactions while someone is watching an ad?
+  - Panopto: **try figuring out whether Panopto is possible before problem framing.**
+  - Syncing: nice-to-have, and (if we want it) we should test early.
+- **AI incorporation.**
+  - Note that this feature can be pushed back (post MVP).
+  - Look into setting up credits.
+
+<!-- 
+- focus more on supporting discussion (bad situation that arises with discussion)
+- bad situation = user journey (alleviated by user journey)
+- video quality (downloading video)
+- don't put too much effort on engineering
+- public/private discussion => emphasize how it's better than public commenting
+
+- ai summary on request
+- can push back
+- look into incorporating AI
+
+- start testing on syncing early
+- test deployed (can create own site on 6.1040 apps)
+
+- embedding Panopto: Panopto API? authentication?
+- Panopto embed API
+
+- test AD interactions
+- block interactions while someone is frozen by ad
+
+- problem framing: emphasize evidence
+- Panopto: do i want a watch party? what if i want 2x speed? why am i compelled to watch with others?
+- what if want to watch twice with two different groups?
+
+- check by next meeting: panopto. put in problem frame 
+
+plans for next week and decisions made -->

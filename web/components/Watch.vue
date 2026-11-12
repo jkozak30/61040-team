@@ -347,14 +347,27 @@ watch([activeEntry, playerAttempt, playerHost], async () => {
   try {
     const youtube = await loadYouTube();
     if (stopped || generation !== playerGeneration || !playerHost.value) return;
-    const element = document.createElement("div");
+    const element = document.createElement("iframe");
+    element.title = "YouTube video player";
+    element.referrerPolicy = "strict-origin-when-cross-origin";
+    element.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+    element.allowFullscreen = true;
+
+    const embedUrl = new URL(`https://www.youtube.com/embed/${encodeURIComponent(id)}`);
+    embedUrl.search = new URLSearchParams({
+      enablejsapi: "1",
+      controls: "0",
+      disablekb: "1",
+      playsinline: "1",
+      origin: window.location.origin,
+      ...(!localPlayback.value && snapshot.value
+        ? { start: String(Math.floor(sharedPosition())) }
+        : {}),
+    }).toString();
+    element.src = embedUrl.href;
+
     playerHost.value.replaceChildren(element);
     player = new youtube.Player(element, {
-      videoId: id,
-      playerVars: {
-        controls: 0, disablekb: 1, playsinline: 1, origin: window.location.origin,
-        ...(!localPlayback.value && snapshot.value ? { start: Math.floor(sharedPosition()) } : {}),
-      },
       events: {
         onReady: ({ target }) => {
           if (stopped || generation !== playerGeneration) return;

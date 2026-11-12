@@ -22,7 +22,22 @@ const server = Bun.serve({
     "/api/*": api,
     "/health": createHealthHandler(db),
   },
-  fetch() {
+  async fetch(request) {
+    const { pathname } = new URL(request.url);
+    const path = pathname === "/" ? "/index.html" : pathname;
+
+    if (
+      (request.method === "GET" || request.method === "HEAD") &&
+      (path === "/index.html" || /^\/assets\/[\w.-]+$/.test(path))
+    ) {
+      const file = Bun.file(new URL(`../web/dist${path}`, import.meta.url));
+      if (await file.exists()) {
+        return new Response(request.method === "HEAD" ? null : file, {
+          headers: { "Content-Type": file.type },
+        });
+      }
+    }
+
     return new Response("Not found", { status: 404 });
   },
 });

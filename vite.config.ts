@@ -6,6 +6,9 @@ const backend = process.env.BACKEND_URL ?? "http://127.0.0.1:3000";
 export default defineConfig({
   root: "web",
   plugins: [vue()],
+  define: {
+    "process.env.LOG_LEVEL": JSON.stringify("info"),
+  },
   server: {
     host: "127.0.0.1",
     port: 8080,

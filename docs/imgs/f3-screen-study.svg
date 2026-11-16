@@ -1,20 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="title description">
   <title id="title">WatchParty live watch and later review screen study</title>
-  <desc id="description">Two proposed screens use an off-white base, charcoal type, and orange for active actions. The live screen emphasizes the video; the later review screen emphasizes the selected thread and its timestamp.</desc>
+  <desc id="description">Bob and Alice pause a machine learning lecture together at 18:42 and discuss model pruning. The next day Bob reopens that moment and Alice's reply while reviewing independently.</desc>
   <rect width="1400" height="760" fill="#eee9df"/>
   <style>
     text { font-family: Arial, sans-serif; fill: #242421; }
     .label { font-size: 15px; font-weight: bold; letter-spacing: 1.5px; }
-    .title { font-size: 29px; font-weight: bold; }
+    .title { font-family: 'Arial Narrow', Arial, sans-serif; font-size: 29px; font-weight: 800; letter-spacing: -.5px; }
     .body { font-size: 17px; }
     .small { font-size: 14px; }
     .muted { fill: #68675f; }
     .white { fill: #fffaf1; }
     .orange { fill: #bd4d27; }
+    .lightorange { fill: #f2ad82; }
     .line { stroke: #d4cec3; stroke-width: 1.5; }
   </style>
-  <text x="38" y="43" class="label">LIVE WATCH</text>
-  <text x="720" y="43" class="label">LATER REVIEW</text>
+  <text x="38" y="43" class="label">01 / LIVE WATCH · BOB AND ALICE</text>
+  <text x="720" y="43" class="label">02 / NEXT DAY · BOB REVIEWS ALONE</text>
 
   <rect x="28" y="62" width="662" height="660" rx="10" fill="#fffaf1"/>
   <rect x="710" y="62" width="662" height="660" rx="10" fill="#fffaf1"/>
@@ -24,8 +25,8 @@
   <rect x="710" y="112" width="662" height="15" fill="#242421"/>
   <text x="51" y="104" class="title white">WATCHPARTY</text>
   <text x="733" y="104" class="title white">WATCHPARTY</text>
-  <text x="554" y="101" class="small white">Room: ML study</text>
-  <text x="1236" y="101" class="small white">Room: ML study</text>
+  <text x="550" y="101" class="small white">ML study room</text>
+  <text x="1232" y="101" class="small white">ML study room</text>
 
   <text x="51" y="161" class="small muted">MACHINE LEARNING · LECTURE 8</text>
   <text x="51" y="194" class="title">Model pruning</text>
@@ -34,35 +35,37 @@
 
   <rect x="51" y="213" width="389" height="260" rx="5" fill="#242421"/>
   <rect x="72" y="236" width="347" height="215" rx="3" fill="#3b3b37"/>
-  <circle cx="171" cy="325" r="27" fill="none" stroke="#d9d2c5" stroke-width="3"/>
-  <circle cx="324" cy="279" r="27" fill="none" stroke="#d9d2c5" stroke-width="3"/>
-  <circle cx="322" cy="376" r="27" fill="none" stroke="#d9d2c5" stroke-width="3"/>
-  <path d="M198 315 L297 286 M198 334 L297 370" stroke="#d9d2c5" stroke-width="3"/>
-  <text x="160" y="333" class="body white">A</text>
-  <text x="313" y="287" class="body white">B</text>
-  <text x="311" y="384" class="body white">C</text>
+  <text x="90" y="262" class="small white">LECTURE FRAME · CONNECTION WEIGHTS</text>
+  <circle cx="150" cy="337" r="23" fill="none" stroke="#e9e3d7" stroke-width="3"/>
+  <circle cx="340" cy="303" r="23" fill="none" stroke="#e9e3d7" stroke-width="3"/>
+  <circle cx="340" cy="390" r="23" fill="none" stroke="#e9e3d7" stroke-width="3"/>
+  <path d="M173 332 L317 307" stroke="#e9e3d7" stroke-width="6"/>
+  <path d="M173 343 L317 384" stroke="#f2ad82" stroke-width="2" stroke-dasharray="5 5"/>
+  <text x="211" y="300" class="small white">weight 0.81</text>
+  <text x="219" y="372" class="small lightorange">weight 0.02</text>
+  <text x="104" y="435" class="small white">Which connection can be removed?</text>
   <rect x="51" y="479" width="389" height="8" rx="4" fill="#d4cec3"/>
   <rect x="51" y="479" width="223" height="8" rx="4" fill="#bd4d27"/>
   <circle cx="274" cy="483" r="8" fill="#bd4d27"/>
-  <text x="51" y="517" class="body orange">Ⅱ  Paused for everyone</text>
+  <text x="51" y="517" class="body orange">Ⅱ  Paused by Bob · synced</text>
   <text x="360" y="517" class="small muted">18:42 / 32:10</text>
   <line x1="51" y1="540" x2="440" y2="540" class="line"/>
   <text x="51" y="568" class="label">IN THIS ROOM</text>
   <text x="51" y="596" class="body">Bob and Alice are watching</text>
-  <text x="51" y="629" class="small muted">Both players follow the same pause and seek.</text>
+  <text x="51" y="629" class="small muted">Alice's player followed Bob's rewind to 18:42.</text>
   <rect x="51" y="656" width="183" height="39" rx="4" fill="#bd4d27"/>
   <text x="67" y="681" class="body white">Resume together</text>
 
   <line x1="463" y1="213" x2="463" y2="695" class="line"/>
   <text x="482" y="238" class="label">DISCUSSION</text>
-  <text x="482" y="269" class="small orange">18:42 · 3 replies</text>
+  <text x="482" y="269" class="small orange">18:42 · 2 replies</text>
   <text x="482" y="299" class="body">Why can these</text>
   <text x="482" y="322" class="body">connections go?</text>
   <text x="482" y="353" class="small muted">Bob · just now</text>
   <line x1="482" y1="374" x2="668" y2="374" class="line"/>
-  <text x="482" y="405" class="body">Alice: The weak</text>
-  <text x="482" y="428" class="body">weights contribute</text>
-  <text x="482" y="451" class="body">very little...</text>
+  <text x="482" y="405" class="body">Alice: Small weights</text>
+  <text x="482" y="428" class="body">contribute little</text>
+  <text x="482" y="451" class="body">to the output...</text>
   <text x="482" y="499" class="small orange">View thread →</text>
   <rect x="482" y="650" width="186" height="45" rx="4" fill="#eee9df"/>
   <text x="494" y="678" class="small muted">Ask at this time...</text>
@@ -70,25 +73,34 @@
   <text x="733" y="223" class="small muted">Shared watch ended yesterday · reviewing independently</text>
   <rect x="733" y="244" width="272" height="185" rx="5" fill="#242421"/>
   <rect x="749" y="260" width="240" height="153" rx="3" fill="#3b3b37"/>
-  <circle cx="869" cy="336" r="30" fill="none" stroke="#d9d2c5" stroke-width="3"/>
-  <path d="M862 322 L883 336 L862 350 Z" fill="#d9d2c5"/>
-  <text x="733" y="459" class="small orange">▶  Replay from 18:42</text>
+  <text x="763" y="283" class="small white">18:42 · CONNECTION WEIGHTS</text>
+  <circle cx="795" cy="347" r="16" fill="none" stroke="#e9e3d7" stroke-width="2"/>
+  <circle cx="934" cy="324" r="16" fill="none" stroke="#e9e3d7" stroke-width="2"/>
+  <circle cx="934" cy="381" r="16" fill="none" stroke="#e9e3d7" stroke-width="2"/>
+  <path d="M811 344 L918 327" stroke="#e9e3d7" stroke-width="4"/>
+  <path d="M811 351 L918 377" stroke="#f2ad82" stroke-width="2" stroke-dasharray="4 4"/>
+  <rect x="733" y="439" width="272" height="5" rx="2.5" fill="#d4cec3"/>
+  <rect x="733" y="439" width="158" height="5" rx="2.5" fill="#bd4d27"/>
+  <circle cx="891" cy="441.5" r="6" fill="#bd4d27"/>
+  <text x="733" y="473" class="small orange">▶  Replay from 18:42</text>
+  <text x="928" y="473" class="small muted">/ 32:10</text>
   <text x="733" y="505" class="label">DISCUSSION OVERVIEW</text>
-  <text x="733" y="536" class="body">The group discussed why weak network</text>
-  <text x="733" y="560" class="body">connections can be removed.</text>
-  <text x="733" y="590" class="small muted">Generated yesterday · Check the original replies</text>
+  <text x="733" y="536" class="body">Bob asked why a weak</text>
+  <text x="733" y="560" class="body">connection can be removed.</text>
+  <text x="733" y="590" class="small muted">Generated yesterday · Read the thread</text>
   <text x="733" y="629" class="body orange">18:42 · Bob and Alice's thread →</text>
-  <text x="733" y="657" class="body orange">24:06 · Follow-up on accuracy →</text>
+  <text x="733" y="657" class="body orange">24:06 · Training accuracy →</text>
 
   <line x1="1027" y1="244" x2="1027" y2="695" class="line"/>
   <text x="1046" y="268" class="label">SELECTED THREAD</text>
+  <rect x="1038" y="284" width="318" height="343" rx="6" fill="#f4eee3"/>
   <text x="1046" y="302" class="small orange">18:42 · Model pruning</text>
   <text x="1046" y="339" class="body">Why can these connections</text>
   <text x="1046" y="363" class="body">be removed?</text>
   <text x="1046" y="391" class="small muted">Bob · yesterday</text>
   <line x1="1046" y1="414" x2="1348" y2="414" class="line"/>
-  <text x="1046" y="449" class="body">The weak weights contribute</text>
-  <text x="1046" y="473" class="body">very little to the output.</text>
+  <text x="1046" y="449" class="body">Small weights contribute</text>
+  <text x="1046" y="473" class="body">little to the output.</text>
   <text x="1046" y="501" class="small muted">Alice · yesterday</text>
   <line x1="1046" y1="523" x2="1348" y2="523" class="line"/>
   <text x="1046" y="558" class="body">How do we decide what</text>

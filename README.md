@@ -10,6 +10,7 @@ This repo contains the 6.1040 final team project of Julia Kozak, Hunter Liao, an
   - [Concept Design](./docs/f3.md#concept-design)
   - [User Journey](./docs/f3.md#user-journey)
   - [Visual Design Study](./docs/f3.md#visual-design-study)
+  - [Live watch and later review screen study](./docs/imgs/f3-screen-study.svg)
   - [Design Summary](./docs/f3.md#design-summary)
   - [Development Plan](./docs/f3.md#development-plan)
 

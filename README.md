@@ -4,7 +4,7 @@ This repo contains the 6.1040 final team project of Julia Kozak, Hunter Liao, an
 
 ## Links to Project Files
 
-- [F2: Problem Framing](./docs/f2.md)
+- [F2: Problem Framing (earlier draft)](./docs/f2.md)
 - [F3: Concept Design](./docs/f3.md)
   - [Problem Framing](./docs/f3.md#revised-problem-framing)
   - [Concept Design](./docs/f3.md#concept-design)

@@ -47,6 +47,28 @@ Testing progress:
 
 ## (post-meeting) Plans and Decisions
 
-TODO
+- **Consider separating or renaming streaming.**
+  - unclear from name "Streaming" that you have a video list / can stream multiple videos
+- **Test Gemini capabilities.**
+  - Test: give Gemini a YouTube link, and see if it can pull certain frames (list of timestamps)
+  - Test: give frames directly
+- **Expand discussion capabilities.**
+  - should add post editing and deletion
+- **"Sign in as guest" can be split into a new small concept.**
+  - perhaps could integrate into sessioning, though may stray from intended purpose
+  - can defer to later (for now assume all users have accounts)
+- **Keep rooms open until the last person leaves.**
+  - change: anyone can end the stream (with confirmation), anyone can switch video
+  - owner still has authority over the video list
+  - owner does not have to be present for the livestream to continue
+  - room closes at a manual "end live stream", or once everyone leaves the live watch
+
+<!-- TODO
 
 plans for next week and decisions made
+
+- separate streaming
+- gemini: give youtube link, or try passing frames
+- can put off guest => very simple additional guest concept
+- reassignment => add option to auto-reassign when someone leaves, not requiring transfer when the owner leaves is better
+- deleting for discussion (delete thread and edit) -->

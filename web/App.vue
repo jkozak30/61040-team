@@ -7,6 +7,7 @@ import { closeDialog } from "./dialog-motion.ts";
 import AddVideoDialog from "./components/AddVideoDialog.vue";
 import Lobby from "./components/Lobby.vue";
 import Login from "./components/Login.vue";
+import { validPassword, validUsername } from "../src/account-input.ts";
 import Watch from "./components/Watch.vue";
 
 const api = createHttpClient<WatchPartyWireHttp>({ baseUrl: "/api" });
@@ -226,6 +227,14 @@ async function run(action: () => Promise<unknown>) {
 
 function submit(credentials: { username: string; password: string }, creating: boolean) {
   return run(async () => {
+    if (creating && !validUsername(credentials.username)) {
+      error.value = "Use 3–32 letters, numbers, underscores, or hyphens for the username. No spaces or @ signs.";
+      return;
+    }
+    if (creating && !validPassword(credentials.password)) {
+      error.value = "Use 10–128 characters for the password.";
+      return;
+    }
     const participant = identity.value?.kind === "guest" ? room.value?.participant : undefined;
     const result = participant
       ? creating
@@ -245,7 +254,9 @@ function submit(credentials: { username: string; password: string }, creating: b
           error.value = "That username is taken.";
           break;
         case "INVALID_REQUEST":
-          error.value = "Check your username and password and try again.";
+          error.value = creating
+            ? "The account details were rejected. Check the username and password rules."
+            : "Check your username and password and try again.";
           break;
         default:
           error.value = "Could not sign in. Try again.";

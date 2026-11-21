@@ -1,9 +1,11 @@
 # Discussion
 
-When implemented, instantiate Discussing with a Watching.VideoEntry as
+Instantiate Discussing with a Watching.VideoEntry as
 Topic, a RoomJoining.Participant as Author, a finite nonnegative Number of
 video seconds as Anchor, and LIVE or HISTORICAL as Context. The implementation
-is not selected by the application assembly yet.
+is selected by the application assembly.
+
+The [discussion access view](view:Discussion.DiscussionAccess) verifies membership and entry ownership.
 
 A room member [starts a thread](reaction:Discussion.StartThread) on a
 listed video. Resolve the session through [room access](view:Rooms.RoomAccess),
@@ -45,7 +47,8 @@ group's player.
 
 The same guarded thread list supplies the original messages to
 Summarizing. A summary should reference thread IDs and their anchors,
-not copy a separate discussion history.
+not copy a separate discussion history. The [topic threads former](former:Discussion.TopicThreads)
+provides the ordered threads for display.
 Two entries with the same YouTube URL have separate discussions, because
 the saved entry, rather than the URL, is the thread topic.
 
@@ -59,15 +62,12 @@ video returns an unavailable response; a request without room access is
 forbidden. Discussing does not edit or delete messages in this checkpoint.
 
 ```computations
-videoSecond(position: Number) : Number
-  Accepts a finite nonnegative position in seconds. The video player checks the actual duration; the concept has no provider-specific duration.
-
-discussionContext(mode: String) : String
-  Maps the verified LIVE or HISTORICAL request mode to the saved message context.
-
 listedVideo(entries: Watching.VideoList, entry: Watching.VideoEntry) : (listed: Flag)
   Answers whether the room Stream's ordered video list contains the requested entry.
 
 liveVideo(snapshot: Watching.WatchSnapshot, entry: Watching.VideoEntry) : (live: Flag)
   Answers whether this entry is selected in a started watch that has not ended.
+
+isHistorical(mode: String) : (historical: Flag)
+  Answers whether the request is from independent playback rather than live playback.
 ```

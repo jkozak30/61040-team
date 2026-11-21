@@ -94,4 +94,7 @@ _message(message: Message) : optional (thread: Thread, topic: Topic, anchor: Anc
 
 _topicThreads(topic: Topic) : many (thread: Thread, anchor: Anchor, messages: MessageList)
   Answers every thread for the topic, ordered by anchor, opening time, and thread identity. Each thread includes its opening message and replies by posting time and message identity.
+
+_topicMaterial(topic: Topic) : one (threads: MessageList)
+  Answers the ordered threads together for a summary request.
 ```

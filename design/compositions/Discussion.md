@@ -2,8 +2,9 @@
 
 Discussing uses a Watching.VideoEntry as Topic, a RoomJoining.Participant as
 Author, a finite nonnegative number of video seconds as Anchor, and LIVE or
-HISTORICAL as Context. The concept is selected in the application assembly;
-the discussion endpoints are the next integration step.
+HISTORICAL as Context. The composition uses room membership and the saved video
+list before allowing access to a thread. The [saved video view](view:Discussion.TopicAccess)
+checks these facts for each read and post.
 
 A room member [starts a thread](reaction:Discussion.StartThread) on a
 listed video. Resolve the session through [room access](view:Rooms.RoomAccess),
@@ -37,7 +38,8 @@ A member [lists threads](reaction:Discussion.ListThreads) for one video
 entry or [opens a thread](reaction:Discussion.ReadThread) from a timestamp
 or summary reference. Both reads check the session, room membership, and
 entry ownership before returning messages. A thread link alone grants no
-access. Return the saved display name, author, posting time, context, and
+access. The [thread list former](former:Discussion.Threads) returns the saved
+display name, author, posting time, context, and
 parent for each message so the browser can show replies in order. A thread
 timestamp opens that video in local playback at the saved position; if the
 student is following a live watch, opening the thread does not seek the
@@ -46,12 +48,23 @@ group's player.
 The same guarded thread list supplies the original messages to
 Summarizing. A summary should reference thread IDs and their anchors,
 not copy a separate discussion history.
+The discussion material query returns all threads together, and the summary
+input computation formats each with its timestamp and messages. A member can
+[request an overview](reaction:Discussion.RequestSummary) for a listed video.
+Summarizing saves the overview and its thread references. An empty discussion
+has no overview to generate. A failed request leaves the prior overview in
+place. The [saved overview former](former:Discussion.SavedSummary) returns that
+record with its generation time. A member can also
+[read the overview](reaction:Discussion.ReadSummary) without generating again.
+Both requests use the same room and video checks as the thread list.
 Two entries with the same YouTube URL have separate discussions, because
 the saved entry, rather than the URL, is the thread topic.
 
 ```endpoints
 Discussion.ListThreads at /discussion/threads
 Discussion.ReadThread at /discussion/thread
+Discussion.RequestSummary at /discussion/summarize
+Discussion.ReadSummary at /discussion/summary
 ```
 
 An invalid or empty message leaves state unchanged. An unknown parent or
@@ -70,4 +83,7 @@ listedVideo(entries: Watching.VideoList, entry: Watching.VideoEntry) : (listed: 
 
 liveVideo(snapshot: Watching.WatchSnapshot, entry: Watching.VideoEntry) : (live: Flag)
   Answers whether this entry is selected in a started watch that has not ended.
+
+summaryItems(threads: Discussing.MessageList) : Summarizing.SummaryInput
+  Formats each thread's timestamp and messages as input for the summarizer.
 ```

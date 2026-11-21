@@ -7,10 +7,11 @@ const threads = ref<{ thread: string; anchor: number }[]>([]);
 const busy = ref(false);
 const error = ref("");
 let token = 0;
+let generation = 0;
 let poll: ReturnType<typeof setInterval> | undefined;
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
-async function post(path: string) {
-  const res = await fetch(`/api${path}`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: props.room, participant: props.participant, entry: props.entry }) });
+async function post(path: string, entry = props.entry) {
+  const res = await fetch(`/api${path}`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: props.room, participant: props.participant, entry }) });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.message ?? data.error ?? "Summary unavailable");
   return data;
@@ -28,19 +29,27 @@ async function read() {
   catch (e) { if (at === token) error.value = String(e); }
 }
 async function generate() {
+  const entry = props.entry;
+  const at = ++generation;
   busy.value = true; error.value = "";
-  try { const result = await post("/summary/request"); summary.value = result.summary ?? null; }
-  catch (e) { error.value = String(e); }
-  finally { busy.value = false; }
+  try {
+    const result = await post("/summary/request", entry);
+    if (at === generation && entry === props.entry) {
+      token++;
+      summary.value = result.summary ?? null;
+    }
+  }
+  catch (e) { if (at === generation && entry === props.entry) error.value = String(e); }
+  finally { if (at === generation) busy.value = false; }
 }
 function openThread(thread: string) {
   const found = threads.value.find((item) => item.thread === thread);
   if (found) emit("openThread", found.thread, found.anchor);
 }
-watch(() => props.entry, () => { token++; summary.value = null; threads.value = []; error.value = ""; void read(); });
+watch(() => props.entry, () => { token++; generation++; busy.value = false; summary.value = null; threads.value = []; error.value = ""; void read(); });
 watch(() => props.revision, () => void read());
 onMounted(() => { void read(); poll = setInterval(() => { if (!busy.value) void read(); }, 10000); });
-onBeforeUnmount(() => { token++; if (poll) clearInterval(poll); });
+onBeforeUnmount(() => { token++; generation++; if (poll) clearInterval(poll); });
 </script>
 <template>
   <div class="summary-panel">

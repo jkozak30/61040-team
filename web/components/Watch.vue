@@ -148,11 +148,9 @@ async function leaveShared(action: { anchor?: number; thread?: string }) {
 }
 function watchLocally(action: { anchor?: number; thread?: string } = {}) {
   if (localPlayback.value) return applyLocalAction(action);
-  if (busy.value) return;
-  if ((state.value?.watch.viewers.length ?? 0) <= 1) {
-    pendingLocalAction.value = action;
-    localWatchDialog.value?.showModal();
-  } else void run(() => leaveShared(action));
+  if (busy.value || localWatchDialog.value?.open) return;
+  pendingLocalAction.value = action;
+  localWatchDialog.value?.showModal();
 }
 async function answerLocalWatch(confirmed: boolean) {
   const action = pendingLocalAction.value;
@@ -947,7 +945,7 @@ onBeforeUnmount(() => {
       aria-describedby="local-watch-warning" @cancel.prevent="answerLocalWatch(false)">
       <h2 id="local-watch-heading" class="watch-dialog-title">Watch locally?</h2>
       <div class="watch-dialog-body">
-        <p id="local-watch-warning">You appear to be the last live viewer. Leaving shared playback may end the live watch for everyone, and it cannot restart in this room. You will stay in the room.</p>
+        <p id="local-watch-warning">You will stay in the room and control playback yourself. If you are the last live viewer, leaving shared playback ends the live watch for everyone, and it cannot restart in this room.</p>
         <div class="watch-dialog-actions">
           <button type="button" autofocus @click="answerLocalWatch(false)">Cancel</button>
           <button class="gradient-button" type="button" @click="answerLocalWatch(true)">Watch locally</button>

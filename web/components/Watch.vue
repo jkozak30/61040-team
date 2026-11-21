@@ -65,6 +65,8 @@ const error = ref("");
 const networkError = ref("");
 const busy = ref(false);
 const endWatchDialog = ref<HTMLDialogElement>();
+const localWatchDialog = ref<HTMLDialogElement>();
+const pendingLocalAction = ref<{ anchor?: number; thread?: string }>();
 const connected = ref(false);
 const notification = ref<{ viewer: string; text: string }>();
 let pendingSeekNotice: {
@@ -123,19 +125,43 @@ const videoId = computed(() => entries.value.find((entry) => entry.entry === act
 const discussionRevision = ref(0);
 const focusRequest = ref<{ thread: string; id: number }>();
 let focusId = 0;
-function jumpToThread(anchor: number) {
-  // Reviewing a timestamp must never seek the whole group.
-  if (!localPlayback.value) { localEntry.value = activeEntry.value; shared.value = false; }
-  if (!Number.isFinite(anchor) || anchor < 0) return;
-  optimisticPosition.value = anchor;
-  localPosition.value = anchor;
-  currentTime.value = anchor;
-  player?.seekTo(anchor, true);
+function applyLocalAction({ anchor, thread }: { anchor?: number; thread?: string }) {
+  if (anchor !== undefined && Number.isFinite(anchor) && anchor >= 0) {
+    optimisticPosition.value = anchor;
+    localPosition.value = anchor;
+    currentTime.value = anchor;
+    player?.seekTo(anchor, true);
+  }
+  if (thread) focusRequest.value = { thread, id: ++focusId };
 }
-function openSummaryThread(thread: string, anchor: number) {
-  focusRequest.value = { thread, id: ++focusId };
-  jumpToThread(anchor);
+async function leaveShared(action: { anchor?: number; thread?: string }) {
+  const entry = activeEntry.value;
+  const result = await api.watch.leave({ ...membership, connection });
+  if ("error" in result) {
+    error.value = "Could not leave the live watch. Try again.";
+    return;
+  }
+  localEntry.value = entry;
+  shared.value = false;
+  applyLocalAction(action);
+  await refresh(true);
 }
+function watchLocally(action: { anchor?: number; thread?: string } = {}) {
+  if (localPlayback.value) return applyLocalAction(action);
+  if (busy.value) return;
+  if ((state.value?.watch.viewers.length ?? 0) <= 1) {
+    pendingLocalAction.value = action;
+    localWatchDialog.value?.showModal();
+  } else void run(() => leaveShared(action));
+}
+async function answerLocalWatch(confirmed: boolean) {
+  const action = pendingLocalAction.value;
+  pendingLocalAction.value = undefined;
+  if (!await closeDialog(localWatchDialog.value) || !confirmed || !action) return;
+  await run(() => leaveShared(action));
+}
+function jumpToThread(anchor: number) { watchLocally({ anchor }); }
+function openSummaryThread(thread: string, anchor: number) { watchLocally({ anchor, thread }); }
 const inviteLink = computed(() => {
   if (!props.inviteCode) return "";
   const url = new URL(window.location.pathname, window.location.origin);
@@ -849,6 +875,7 @@ onBeforeUnmount(() => {
         <div class="watch-actions">
           <span v-if="watchEnded">Live watch ended</span>
           <button v-if="live && localPlayback" type="button" @click="run(joinShared)">Join live watch</button>
+          <button v-if="live && !localPlayback" type="button" @click="watchLocally()">Watch locally</button>
           <button v-if="state.isOwner && !live && !watchEnded && activeEntry" class="start-live" type="button" @click="startWatch">
             Start live watch
           </button>
@@ -913,6 +940,17 @@ onBeforeUnmount(() => {
         <div class="watch-dialog-actions">
           <button type="button" autofocus @click="answerEndWatch(false)">Cancel</button>
           <button class="gradient-button" type="button" @click="answerEndWatch(true)">Confirm</button>
+        </div>
+      </div>
+    </dialog>
+    <dialog ref="localWatchDialog" class="watch-dialog" aria-labelledby="local-watch-heading"
+      aria-describedby="local-watch-warning" @cancel.prevent="answerLocalWatch(false)">
+      <h2 id="local-watch-heading" class="watch-dialog-title">Watch locally?</h2>
+      <div class="watch-dialog-body">
+        <p id="local-watch-warning">You appear to be the last live viewer. Leaving shared playback may end the live watch for everyone, and it cannot restart in this room. You will stay in the room.</p>
+        <div class="watch-dialog-actions">
+          <button type="button" autofocus @click="answerLocalWatch(false)">Cancel</button>
+          <button class="gradient-button" type="button" @click="answerLocalWatch(true)">Watch locally</button>
         </div>
       </div>
     </dialog>

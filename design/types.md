@@ -44,4 +44,8 @@ instantiate Discussing with
   Author is RoomJoining.Participant
   Anchor is VideoSecond
   Context is DiscussionContext
+
+instantiate Summarizing with
+  Topic is Watching.VideoEntry
+  Item is Discussing.Thread
 ```

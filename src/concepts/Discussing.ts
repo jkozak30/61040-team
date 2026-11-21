@@ -97,6 +97,10 @@ export class DiscussingConcept<
       || left._id.localeCompare(right._id))
       .map((thread) => ({ thread: thread._id, anchor: thread.anchor, messages: orderedMessages(thread.messages) }));
   }
+
+  async _topicMaterial({ topic }: { topic: Topic }) {
+    return { threads: await this._topicThreads({ topic }) };
+  }
 }
 
 function validateMessage(name: string, text: string, kind: "comment" | "reply") {

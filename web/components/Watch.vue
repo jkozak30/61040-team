@@ -37,6 +37,8 @@ const seekDraft = ref<number>();
 const draggingSeek = ref(false);
 const currentTime = ref(0);
 const localPosition = ref<number>();
+const discussionRevision = ref(0);
+const focusedThread = ref<string>();
 const duration = ref(0);
 const localPlaying = ref(false);
 const optimisticPosition = ref<number>();
@@ -119,6 +121,7 @@ const playing = computed(() => localPlayback.value ? localPlaying.value : snapsh
 const activeEntry = computed(() => localPlayback.value
   ? localEntry.value ?? snapshot.value?.activeEntry ?? entries.value[0]?.entry
   : snapshot.value?.activeEntry);
+watch(activeEntry, () => { focusedThread.value = undefined; });
 const videoId = computed(() => entries.value.find((entry) => entry.entry === activeEntry.value)?.source.id);
 const inviteLink = computed(() => {
   if (!props.inviteCode) return "";
@@ -568,6 +571,22 @@ function discussionPosition() {
   return position !== undefined && Number.isFinite(position) && position >= 0 ? position : undefined;
 }
 
+function openDiscussionAt(anchor: number) {
+  const entry = activeEntry.value;
+  if (!entry) return;
+  shared.value = false;
+  localEntry.value = entry;
+  const position = Math.max(0, Math.min(duration.value || Infinity, anchor));
+  localPosition.value = position;
+  currentTime.value = position;
+  if (playerReady.value && player) player.seekTo(position, true);
+}
+
+function openDiscussionThread(thread: string, anchor: number) {
+  focusedThread.value = thread;
+  openDiscussionAt(anchor);
+}
+
 function updateProgress() {
   if (!playerReady.value || !player) return;
   duration.value = player.getDuration() || 0;
@@ -840,7 +859,10 @@ onBeforeUnmount(() => {
           <button type="button" @click="emit('leave-room')">Leave room</button>
         </div>
 
-        <Discussion v-if="activeEntry" />
+        <Discussion v-if="activeEntry" :room="room" :participant="participant" :entry="activeEntry"
+          :position="localPosition ?? currentTime" :mode="!localPlayback && connected ? 'LIVE' : 'HISTORICAL'"
+          :connection="connection" :focus-thread="focusedThread"
+          @posted="discussionRevision++" @open-at="openDiscussionAt" />
       </template>
       <p v-else-if="busy" role="status">Opening watch...</p>
       <button v-else type="button" @click="enter">Retry watch</button>
@@ -882,7 +904,8 @@ onBeforeUnmount(() => {
         </ul>
       </section>
       <section v-if="activeEntry" class="overview-panel" aria-label="AI overview">
-        <DiscussionSummary />
+        <DiscussionSummary :room="room" :participant="participant" :entry="activeEntry"
+          :revision="discussionRevision" @open-thread="openDiscussionThread" />
       </section>
     </aside>
     <dialog ref="endWatchDialog" class="watch-dialog" aria-labelledby="end-watch-heading"

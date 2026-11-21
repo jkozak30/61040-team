@@ -13,6 +13,7 @@ export default {
       new URL("./design/compositions/Accounts.md", import.meta.url),
       new URL("./design/compositions/Rooms.md", import.meta.url),
       new URL("./design/compositions/Watch.md", import.meta.url),
+      new URL("./design/compositions/Discussion.md", import.meta.url),
     ],
   },
   projections: [httpWire({ policy, name: "WatchPartyWireHttp" })],

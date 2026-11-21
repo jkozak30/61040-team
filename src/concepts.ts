@@ -4,6 +4,7 @@ import sessioningSpec from "@design/concepts/Sessioning.md" with { type: "text" 
 import presenceSpec from "@design/concepts/Presence.md" with { type: "text" };
 import watchingSpec from "@design/concepts/Watching.md" with { type: "text" };
 import discussingSpec from "@design/concepts/Discussing.md" with { type: "text" };
+import summarizingSpec from "@design/concepts/Summarizing.md" with { type: "text" };
 import { youtubeSource, type MediaSource } from "./media-source.ts";
 import type { PlaybackCommand, Snapshot, VideoEntry } from "./concepts/Watching.ts";
 import roomJoiningSpec from "@design/concepts/RoomJoining.md" with { type: "text" };
@@ -35,6 +36,8 @@ import {
   VideoUnavailable,
 } from "./concepts/Watching.ts";
 import { DiscussingConcept, InvalidAnchor, InvalidMessage, ThreadUnavailable } from "./concepts/Discussing.ts";
+import { SummarizingConcept, NoDiscussion } from "./concepts/Summarizing.ts";
+import type { Thread } from "./concepts/Discussing.ts";
 
 
 type PlayerConnection = string & { readonly __brand: "PlayerConnection" };
@@ -122,12 +125,31 @@ const discussing = registerConcept({
   },
 });
 
+export class Summarizing extends SummarizingConcept<VideoEntry, Thread> {}
+
+const summarizing = registerConcept({
+  class: Summarizing,
+  spec: summarizingSpec,
+  refusals: { NO_DISCUSSION: NoDiscussion },
+});
+
 export const applicationConceptSet = conceptSet(
-  { Authenticating: authenticating, Sessioning: sessioning, Presence: presence, RoomJoining: roomJoining, Watching: watching, Discussing: discussing },
+  { Authenticating: authenticating, Sessioning: sessioning, Presence: presence, RoomJoining: roomJoining, Watching: watching, Discussing: discussing, Summarizing: summarizing },
   {
     youtubeSource: ({ videoId, previewTitle }: { videoId: string; previewTitle?: string | null }) => youtubeSource(videoId, previewTitle),
     watchLive: ({ snapshot }: { snapshot: Snapshot }) => ({ live: !!snapshot.activeEntry && !snapshot.endedAt }),
     watchRevision: ({ snapshot }: { snapshot: Snapshot }) => snapshot.revision,
+    listedVideo: ({ entries, entry }: { entries: { entry: VideoEntry }[]; entry: VideoEntry }) =>
+      ({ listed: entries.some((candidate) => candidate.entry === entry) }),
+    liveVideo: ({ snapshot, entry }: { snapshot: Snapshot; entry: VideoEntry }) =>
+      ({ live: snapshot.activeEntry === entry && !snapshot.endedAt }),
+    discussionContext: ({ mode }: { mode: string }) => ({ context: mode }),
+    videoSecond: ({ position }: { position: number }) => position,
+    summaryItems: ({ threads }: { threads: { thread: Thread; anchor: number; messages: { name: string; text: string }[] }[] }) =>
+      threads.map(({ thread, anchor, messages }) => ({
+        item: thread,
+        text: `At ${Math.floor(anchor / 60)}:${String(Math.floor(anchor % 60)).padStart(2, "0")}: ${messages.map(({ name, text }) => `${name}: ${text}`).join("\n")}`,
+      })),
     playbackCommand: ({ entry, expectedRevision, operation, position, offset }: {
       entry: VideoEntry; expectedRevision: number; operation: PlaybackCommand["operation"];
       position?: number | null; offset?: number | null;

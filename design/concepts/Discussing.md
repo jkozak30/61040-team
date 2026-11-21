@@ -49,6 +49,7 @@ a set of Messages with
 Rule: Each thread has exactly one message without a parent. It is the opening message.
 Rule: A reply's parent is an earlier message in the same thread.
 Rule: The topic and anchor of a thread do not change when a reply is added.
+Rule: An anchor is a finite nonnegative number of seconds in the topic.
 Rule: Text is trimmed, nonempty, and at most 2000 UTF-16 code units. The saved name is nonempty.
 Rule: Messages keep their original author and saved name if a participant later claims a guest visit.
 ```
@@ -57,6 +58,9 @@ Rule: Messages keep their original author and saved name if a participant later 
 
 ```actions
 startThread(topic: Topic, author: Author, name: String, anchor: Anchor, text: String, context: Context) : returns (thread: Thread, message: Message)
+  where anchor is not a finite nonnegative number
+  then
+    refuses INVALID_ANCHOR "Choose a valid video position."
   where the trimmed text is empty or exceeds 2000 UTF-16 code units, or name is empty
   then
     refuses INVALID_MESSAGE "Write a comment of 1 to 2000 characters."

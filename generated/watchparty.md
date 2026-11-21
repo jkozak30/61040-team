@@ -27,7 +27,34 @@ Defined in [Authenticating](../design/concepts/Authenticating.md), line 1.
 
 #### Instances
 
-- `Authenticating` — instance of `Authenticating` — [Application types](../design/types.md), line 18.
+- `Authenticating` — instance of `Authenticating` — [Application types](../design/types.md), line 24.
+
+### Discussing
+
+Defined in [Discussing](../design/concepts/Discussing.md), line 1.
+
+#### Actions
+
+- `startThread(topic: Topic, author: Author, name: String, anchor: Anchor, text: String, context: Context) : returns (thread: Thread, message: Message)`
+  - Refuses `INVALID_ANCHOR`: Choose a valid video position.
+  - Refuses `INVALID_MESSAGE`: Write a comment of 1 to 2000 characters.
+- `reply(parent: Message, author: Author, name: String, text: String, context: Context) : returns (message: Message)`
+  - Refuses `THREAD_UNAVAILABLE`: This discussion is no longer available.
+  - Refuses `INVALID_MESSAGE`: Write a reply of 1 to 2000 characters.
+
+#### Queries
+
+- `_thread(thread: Thread) : optional (topic: Topic, anchor: Anchor, messages: MessageList)`
+- `_message(message: Message) : optional (thread: Thread, topic: Topic, anchor: Anchor)`
+- `_topicThreads(topic: Topic) : many (thread: Thread, anchor: Anchor, messages: MessageList)`
+
+#### Instances
+
+- `Discussing` — instance of `Discussing` — [Application types](../design/types.md), line 42.
+  - `Anchor` is `VideoSecond` — [Application types](../design/types.md), line 45.
+  - `Author` is `RoomJoining.Participant` — [Application types](../design/types.md), line 44.
+  - `Context` is `DiscussionContext` — [Application types](../design/types.md), line 46.
+  - `Topic` is `Watching.VideoEntry` — [Application types](../design/types.md), line 43.
 
 ### Presence
 
@@ -50,10 +77,10 @@ Defined in [Presence](../design/concepts/Presence.md), line 1.
 
 #### Instances
 
-- `Presence` — instance of `Presence` — [Application types](../design/types.md), line 23.
-  - `Connection` is `PlayerConnection` — [Application types](../design/types.md), line 26.
-  - `PresenceSubject` is `RoomJoining.Participant` — [Application types](../design/types.md), line 25.
-  - `Scope` is `RoomJoining.Room` — [Application types](../design/types.md), line 24.
+- `Presence` — instance of `Presence` — [Application types](../design/types.md), line 29.
+  - `Connection` is `PlayerConnection` — [Application types](../design/types.md), line 32.
+  - `PresenceSubject` is `RoomJoining.Participant` — [Application types](../design/types.md), line 31.
+  - `Scope` is `RoomJoining.Room` — [Application types](../design/types.md), line 30.
 
 ### RoomJoining
 
@@ -84,8 +111,8 @@ Defined in [RoomJoining](../design/concepts/RoomJoining.md), line 1.
 
 #### Instances
 
-- `RoomJoining` — instance of `RoomJoining` — [Application types](../design/types.md), line 28.
-  - `Identity` is `SessionSubject` — [Application types](../design/types.md), line 29.
+- `RoomJoining` — instance of `RoomJoining` — [Application types](../design/types.md), line 34.
+  - `Identity` is `SessionSubject` — [Application types](../design/types.md), line 35.
 
 ### Sessioning
 
@@ -107,8 +134,8 @@ Defined in [Sessioning](../design/concepts/Sessioning.md), line 1.
 
 #### Instances
 
-- `Sessioning` — instance of `Sessioning` — [Application types](../design/types.md), line 20.
-  - `Subject` is `SessionSubject` — [Application types](../design/types.md), line 21.
+- `Sessioning` — instance of `Sessioning` — [Application types](../design/types.md), line 26.
+  - `Subject` is `SessionSubject` — [Application types](../design/types.md), line 27.
 
 ### Watching
 
@@ -139,18 +166,20 @@ Defined in [Watching](../design/concepts/Watching.md), line 1.
 
 #### Instances
 
-- `Watching` — instance of `Watching` — [Application types](../design/types.md), line 31.
-  - `Media` is `MediaSource` — [Application types](../design/types.md), line 34.
-  - `Scope` is `RoomJoining.Room` — [Application types](../design/types.md), line 32.
-  - `Viewer` is `RoomJoining.Participant` — [Application types](../design/types.md), line 33.
+- `Watching` — instance of `Watching` — [Application types](../design/types.md), line 37.
+  - `Media` is `MediaSource` — [Application types](../design/types.md), line 40.
+  - `Scope` is `RoomJoining.Room` — [Application types](../design/types.md), line 38.
+  - `Viewer` is `RoomJoining.Participant` — [Application types](../design/types.md), line 39.
 
 ## Application types
 
 Concrete types:
 
+- `DiscussionContext` — [Application types](../design/types.md), line 16.
 - `MediaSource` — [Application types](../design/types.md), line 10.
 - `PlayerConnection` — [Application types](../design/types.md), line 7.
-- `SessionSubject` — [Application types](../design/types.md), line 13.
+- `SessionSubject` — [Application types](../design/types.md), line 19.
+- `VideoSecond` — [Application types](../design/types.md), line 13.
 
 ## Computations
 

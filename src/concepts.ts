@@ -3,6 +3,7 @@ import authenticatingSpec from "@design/concepts/Authenticating.md" with { type:
 import sessioningSpec from "@design/concepts/Sessioning.md" with { type: "text" };
 import presenceSpec from "@design/concepts/Presence.md" with { type: "text" };
 import watchingSpec from "@design/concepts/Watching.md" with { type: "text" };
+import discussingSpec from "@design/concepts/Discussing.md" with { type: "text" };
 import { youtubeSource, type MediaSource } from "./media-source.ts";
 import type { PlaybackCommand, Snapshot, VideoEntry } from "./concepts/Watching.ts";
 import roomJoiningSpec from "@design/concepts/RoomJoining.md" with { type: "text" };
@@ -33,6 +34,7 @@ import {
   StalePlayback, WatchingConcept, UnknownStream,
   VideoUnavailable,
 } from "./concepts/Watching.ts";
+import { DiscussingConcept, InvalidAnchor, InvalidMessage, ThreadUnavailable } from "./concepts/Discussing.ts";
 
 
 type PlayerConnection = string & { readonly __brand: "PlayerConnection" };
@@ -107,8 +109,21 @@ const watching = registerConcept({
   },
 });
 
+export type DiscussionContext = "LIVE" | "HISTORICAL";
+export class Discussing extends DiscussingConcept<VideoEntry, Participant, DiscussionContext> {}
+
+const discussing = registerConcept({
+  class: Discussing,
+  spec: discussingSpec,
+  refusals: {
+    INVALID_ANCHOR: InvalidAnchor,
+    INVALID_MESSAGE: InvalidMessage,
+    THREAD_UNAVAILABLE: ThreadUnavailable,
+  },
+});
+
 export const applicationConceptSet = conceptSet(
-  { Authenticating: authenticating, Sessioning: sessioning, Presence: presence, RoomJoining: roomJoining, Watching: watching },
+  { Authenticating: authenticating, Sessioning: sessioning, Presence: presence, RoomJoining: roomJoining, Watching: watching, Discussing: discussing },
   {
     youtubeSource: ({ videoId, previewTitle }: { videoId: string; previewTitle?: string | null }) => youtubeSource(videoId, previewTitle),
     watchLive: ({ snapshot }: { snapshot: Snapshot }) => ({ live: !!snapshot.activeEntry && !snapshot.endedAt }),

@@ -1,9 +1,9 @@
 # Discussion
 
-When implemented, instantiate Discussing with a Watching.VideoEntry as
-Topic, a RoomJoining.Participant as Author, a finite nonnegative Number of
-video seconds as Anchor, and LIVE or HISTORICAL as Context. The implementation
-is not selected by the application assembly yet.
+Discussing uses a Watching.VideoEntry as Topic, a RoomJoining.Participant as
+Author, a finite nonnegative number of video seconds as Anchor, and LIVE or
+HISTORICAL as Context. The concept is selected in the application assembly;
+the discussion endpoints are the next integration step.
 
 A room member [starts a thread](reaction:Discussion.StartThread) on a
 listed video. Resolve the session through [room access](view:Rooms.RoomAccess),

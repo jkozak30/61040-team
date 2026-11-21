@@ -1,6 +1,6 @@
 import { assemble } from "@mit-sdg/sync-engine/assembly";
 import type { Db } from "mongodb";
-import { applicationConceptSet, Presence, RoomJoining, Sessioning, Watching } from "./concepts.ts";
+import { applicationConceptSet, Discussing, Presence, RoomJoining, Sessioning, Watching } from "./concepts.ts";
 import { AuthenticatingConcept } from "./concepts/Authenticating.ts";
 import { composition as Accounts } from "./compositions/Accounts.ts";
 import { composition as Rooms } from "./compositions/Rooms.ts";
@@ -22,6 +22,7 @@ export function assembleApplication(
       RoomJoining: new RoomJoining(database),
       Watching: new Watching(database, undefined, async (source) =>
         source.title ? source : youtubeSource(source.id, await lookupVideo(source.id))),
+      Discussing: new Discussing(database),
     },
     composition: { Accounts, Rooms, Watch },
   });

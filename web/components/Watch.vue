@@ -121,6 +121,8 @@ const activeEntry = computed(() => localPlayback.value
   : snapshot.value?.activeEntry);
 const videoId = computed(() => entries.value.find((entry) => entry.entry === activeEntry.value)?.source.id);
 const discussionRevision = ref(0);
+const focusRequest = ref<{ thread: string; id: number }>();
+let focusId = 0;
 function jumpToThread(anchor: number) {
   // Reviewing a timestamp must never seek the whole group.
   if (!localPlayback.value) { localEntry.value = activeEntry.value; shared.value = false; }
@@ -129,6 +131,10 @@ function jumpToThread(anchor: number) {
   localPosition.value = anchor;
   currentTime.value = anchor;
   player?.seekTo(anchor, true);
+}
+function openSummaryThread(thread: string, anchor: number) {
+  focusRequest.value = { thread, id: ++focusId };
+  jumpToThread(anchor);
 }
 const inviteLink = computed(() => {
   if (!props.inviteCode) return "";
@@ -852,6 +858,7 @@ onBeforeUnmount(() => {
 
         <Discussion v-if="activeEntry" :room="room" :participant="participant" :entry="activeEntry"
           :connection="connection" :position="currentTime" :live="!localPlayback && connected"
+          :focus-request="focusRequest"
           @seek="jumpToThread" @changed="discussionRevision++" />
       </template>
       <p v-else-if="busy" role="status">Opening watch...</p>
@@ -895,7 +902,7 @@ onBeforeUnmount(() => {
       </section>
       <section v-if="activeEntry" class="overview-panel" aria-label="AI overview">
         <DiscussionSummary :room="room" :participant="participant" :entry="activeEntry!"
-          :revision="discussionRevision" />
+          :revision="discussionRevision" @open-thread="openSummaryThread" />
       </section>
     </aside>
     <dialog ref="endWatchDialog" class="watch-dialog" aria-labelledby="end-watch-heading"

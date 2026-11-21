@@ -43,3 +43,25 @@ test("two identical timestamps on different entries do not share discussions", a
   await discussing.startThread({ topic: "entry-two", author: "b", name: "B", anchor: 10, text: "two", context: "HISTORICAL" });
   expect((await discussing._topicThreads({ topic: "entry-one" }))[0]?.messages[0]?.text).toBe("one");
 });
+
+test("a nested reply follows its parent even when the clock has not advanced", async () => {
+  const opened = await discussing.startThread({ topic: "entry", author: "bob", name: "Bob", anchor: 10, text: "Question", context: "LIVE" });
+  const answer = await discussing.reply({ parent: opened.message, author: "alice", name: "Alice", text: "Answer", context: "LIVE" });
+  const followUp = await discussing.reply({ parent: answer.message, author: "bob", name: "Bob", text: "Follow-up", context: "HISTORICAL" });
+  const messages = (await discussing._thread({ thread: opened.thread }))[0]!.messages;
+  expect(messages.map(({ message }) => message)).toEqual([opened.message, answer.message, followUp.message]);
+  expect(messages[0]!.postedAt.getTime()).toBeLessThan(messages[1]!.postedAt.getTime());
+  expect(messages[1]!.postedAt.getTime()).toBeLessThan(messages[2]!.postedAt.getTime());
+});
+
+test("concurrent replies from separate instances are retained", async () => {
+  const opened = await discussing.startThread({ topic: "entry", author: "bob", name: "Bob", anchor: 10, text: "Question", context: "LIVE" });
+  const other = new DiscussingConcept(testDb.db, () => now);
+  const [first, second] = await Promise.all([
+    discussing.reply({ parent: opened.message, author: "alice", name: "Alice", text: "First", context: "LIVE" }),
+    other.reply({ parent: opened.message, author: "carol", name: "Carol", text: "Second", context: "LIVE" }),
+  ]);
+  const messages = (await discussing._thread({ thread: opened.thread }))[0]!.messages;
+  expect(messages.map(({ message }) => message)).toEqual(expect.arrayContaining([opened.message, first.message, second.message]));
+  expect(messages).toHaveLength(3);
+});

@@ -500,7 +500,7 @@ export type WatchPartyWireHttp = {
     } | {
       "message": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["reply"]>>, ["message"]>>;
     };
-    error: { error: HttpAppWideError | "CONFLICT" | "FORBIDDEN" | "INTERNAL_ERROR" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+    error: { error: HttpAppWideError | "CONFLICT" | "FORBIDDEN" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
   };
   "/discussion/start-thread": {
     input: {
@@ -519,7 +519,7 @@ export type WatchPartyWireHttp = {
       "message": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>>, ["message"]>>;
       "thread": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>>, ["thread"]>>;
     };
-    error: { error: HttpAppWideError | "CONFLICT" | "FORBIDDEN" | "INTERNAL_ERROR" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+    error: { error: HttpAppWideError | "CONFLICT" | "FORBIDDEN" | "INVALID_REQUEST" | "UNAUTHORIZED" };
   };
   "/discussion/thread": {
     input: {
@@ -533,7 +533,7 @@ export type WatchPartyWireHttp = {
       "messages": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_thread"]>>>, ["messages"]>>;
       "thread": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_thread"]>[0], ["thread"]>>;
     };
-    error: { error: HttpAppWideError | "FORBIDDEN" | "INTERNAL_ERROR" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+    error: { error: HttpAppWideError | "FORBIDDEN" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
   };
   "/discussion/threads": {
     input: {
@@ -666,7 +666,7 @@ export type WatchPartyWireHttp = {
     output: {
       "summary": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Summarizing"]["request"]>>, ["summary"]>>;
     };
-    error: { error: HttpAppWideError | "FORBIDDEN" | "INTERNAL_ERROR" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+    error: { error: HttpAppWideError | "CONFLICT" | "FORBIDDEN" | "INVALID_REQUEST" | "UNAUTHORIZED" };
   };
   "/watch/add-video": {
     input: {

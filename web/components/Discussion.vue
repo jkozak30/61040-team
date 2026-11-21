@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from "vue";
+import { nextTick, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import sendIcon from "../assets/paper-plane.svg";
 
 type Message = { message: string; parent: string | null; author: string; name: string; text: string; context: "LIVE" | "HISTORICAL"; postedAt: string };
 type Thread = { thread: string; anchor: number; messages: Message[] };
-const props = defineProps<{ room: string; participant: string; entry: string; connection: string; position: number; live: boolean }>();
+const props = defineProps<{ room: string; participant: string; entry: string; connection: string; position: number; live: boolean; focusRequest?: { thread: string; id: number } }>();
 const emit = defineEmits<{ seek: [number] ; changed: [] }>();
 const threads = ref<Thread[]>([]);
 const draft = ref("");
 const replies = ref<Record<string, string>>({});
 const busy = ref(false);
 const error = ref("");
+const root = ref<HTMLElement>();
 let poll: ReturnType<typeof setInterval> | undefined;
 let version = 0;
+let lastFocus = 0;
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 const posted = (date: string) => new Date(date).toLocaleString();
 async function request(path: string, payload: object) {
@@ -47,12 +49,18 @@ async function post(parent?: string) {
   finally { busy.value = false; }
 }
 watch(() => props.entry, () => { version++; threads.value = []; draft.value = ""; replies.value = {}; error.value = ""; void refresh(); });
+watch([() => props.focusRequest, threads], async ([focus]) => {
+  if (!focus || focus.id === lastFocus) return;
+  await nextTick();
+  const target = root.value?.querySelector(`[data-thread="${focus.thread}"]`);
+  if (target) { target.scrollIntoView({ block: "nearest" }); lastFocus = focus.id; }
+});
 onMounted(() => { void refresh(); poll = setInterval(() => void refresh(), 3500); });
 onBeforeUnmount(() => { version++; if (poll) clearInterval(poll); });
 </script>
 
 <template>
-  <section aria-label="Discussion" class="discussion">
+  <section ref="root" aria-label="Discussion" class="discussion">
     <header><h3>Discussion</h3><small>Comments are saved with video timestamps.</small></header>
     <p v-if="error" role="alert" class="error">{{ error }}</p>
     <div class="comment-composer">
@@ -67,7 +75,8 @@ onBeforeUnmount(() => { version++; if (poll) clearInterval(poll); });
     </div>
     <p v-if="!threads.length">No discussion for this video yet. Start a thread at the current timestamp.</p>
     <ol v-else class="threads">
-      <li v-for="thread in threads" :key="thread.thread" class="thread">
+      <li v-for="thread in threads" :key="thread.thread" class="thread" :data-thread="thread.thread"
+        :class="{ focused: focusRequest?.thread === thread.thread }">
         <button type="button" class="timestamp" @click="emit('seek', thread.anchor)">{{ clock(thread.anchor) }} · Jump to video</button>
         <ol class="messages">
           <li v-for="message in thread.messages" :key="message.message" :class="{ reply: message.parent !== null }">
@@ -93,6 +102,7 @@ header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space
 .reply-icon { display:grid; place-items:center; padding:.4rem; background:#39323a; }
 .threads,.messages { list-style:none; margin:0; padding:0; display:grid; gap:.75rem; }
 .thread { padding:.6rem; border:1px solid var(--line); border-radius:.35rem; }
+.thread.focused { border-color:var(--accent); }
 .timestamp { margin-bottom:.6rem; font-size:.83rem; }
 .messages > li { padding:.5rem; background:var(--raised); }
 .messages > li.reply { margin-left:1rem; border-left:2px solid var(--outline); }

@@ -1,5 +1,6 @@
 import { password as passwordHash } from "bun";
 import { type Collection, type Db, MongoServerError } from "mongodb";
+import { validPassword, validUsername } from "../account-input.ts";
 
 export class InvalidUsername extends Error {}
 export class InvalidPassword extends Error {}
@@ -15,7 +16,6 @@ interface AccountDocument {
 }
 
 const invalidCredentials = "The username or password is incorrect.";
-const invalidUsername = /[^A-Za-z0-9_-]/;
 
 // Unknown accounts still go through a password verification.
 let dummyVerifier: Promise<string> | undefined;
@@ -78,14 +78,4 @@ export class AuthenticatingConcept {
     const found = await this.accounts.findOne({ _id: account }, { projection: { username: 1 } });
     return found ? [{ username: found.username }] : [];
   }
-}
-
-function validUsername(username: string) {
-  return username.length >= 3 && username.length <= 32 && !invalidUsername.test(username);
-}
-
-function validPassword(password: string) {
-  if (password.length < 10 || password.length > 256) return false;
-  const length = Array.from(password).length;
-  return length >= 10 && length <= 128;
 }

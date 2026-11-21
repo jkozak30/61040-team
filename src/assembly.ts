@@ -14,6 +14,7 @@ import { openMongoClient } from "./db.ts";
 export function assembleApplication(
   database: Db = openMongoClient("mongodb://127.0.0.1:27017/watchparty").db(),
   lookupVideo = lookupYouTubeVideo,
+  generateSummary?: (prompt: string) => Promise<string>,
 ) {
   return assemble({
     conceptSet: applicationConceptSet,
@@ -23,7 +24,7 @@ export function assembleApplication(
       Presence: new Presence(database),
       RoomJoining: new RoomJoining(database),
       Discussing: new Discussing(database),
-      Summarizing: new Summarizing(database),
+      Summarizing: new Summarizing(database, generateSummary),
       Watching: new Watching(database, undefined, async (source) =>
         source.title ? source : youtubeSource(source.id, await lookupVideo(source.id))),
     },

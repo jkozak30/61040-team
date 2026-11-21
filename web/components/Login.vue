@@ -14,7 +14,6 @@ const password = ref("");
 function submit() {
   if (props.busy) return;
   emit("submit", { username: username.value.trim(), password: password.value }, creating.value);
-  password.value = "";
 }
 
 function switchMode() {
@@ -53,7 +52,7 @@ function switchMode() {
       </label>
 
       <p v-if="creating">
-        Use 3–32 letters, digits, underscores, or hyphens for the username
+        Use 3–32 letters, digits, underscores, or hyphens (no spaces or @ signs) for the username
         and 10–128 characters for the password.
       </p>
 

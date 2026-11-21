@@ -47,9 +47,13 @@ export class DiscussingConcept<Topic extends string = string, Author extends str
   }) {
     if (context !== "LIVE" && context !== "HISTORICAL") throw new InvalidMessage("Invalid discussion context.");
     const clean = validate(text, name);
+    const thread = await this.threads.findOne({ "messages.message": parent });
+    if (!thread) throw new ThreadUnavailable("This discussion is no longer available.");
+    const parentMessage = thread.messages.find((message) => message.message === parent)!;
+    const postedAt = new Date(Math.max(this.clock().getTime(), parentMessage.postedAt.getTime() + 1));
     const message = crypto.randomUUID() as Message;
     const newMessage: DiscussionMessage<Author> = {
-      message, parent, author, name: name.trim(), text: clean, context, postedAt: this.clock(),
+      message, parent, author, name: name.trim(), text: clean, context, postedAt,
     };
     // MongoDB's generic $push type cannot infer a generic array element here.
     const update = { $push: { messages: newMessage } } as UpdateFilter<ThreadDocument<Topic, Author>>;

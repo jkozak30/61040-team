@@ -16,10 +16,20 @@ test("generates summary from existing discussion and saves references", async ()
   expect((await other._summary({ topic: "entry-1" }))[0]?.summary.text).toBe("Why? [thread-1]");
 });
 test("empty discussions and generator errors do not erase prior summary", async () => {
-  const good = new SummarizingConcept(db.db, async () => "Saved summary");
+  const good = new SummarizingConcept(db.db, async () => "Saved summary [thread-1]");
   await good.request({ topic: "entry-1", items });
   await expect(good.request({ topic: "entry-2", items: [] })).rejects.toBeInstanceOf(SummaryUnavailable);
   const bad = new SummarizingConcept(db.db, async () => { throw new Error("API failure"); });
   await expect(bad.request({ topic: "entry-1", items })).rejects.toBeInstanceOf(SummaryUnavailable);
-  expect((await bad._summary({ topic: "entry-1" }))[0]?.summary.text).toBe("Saved summary");
+  expect((await bad._summary({ topic: "entry-1" }))[0]?.summary.text).toBe("Saved summary [thread-1]");
+});
+
+test("only cited input threads are saved as references", async () => {
+  const second = { ...items[0]!, thread: "thread-2" } as SummaryItem;
+  const summaries = new SummarizingConcept(db.db, async () => "Review the first question [thread-1].");
+  const saved = await summaries.request({ topic: "entry", items: [...items, second] });
+  expect(saved.summary.referencedThreads.map(String)).toEqual(["thread-1"]);
+  const invalid = new SummarizingConcept(db.db, async () => "Unrelated claim [unknown-thread].");
+  await expect(invalid.request({ topic: "entry", items })).rejects.toBeInstanceOf(SummaryUnavailable);
+  expect((await invalid._summary({ topic: "entry" }))[0]?.summary).toEqual(saved.summary);
 });

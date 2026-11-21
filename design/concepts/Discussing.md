@@ -28,6 +28,9 @@ external Context
 
 opaque MessageList
   The opening message and replies, with each message's identity, parent, author, saved name, text, context, and posting time.
+
+opaque DiscussionItems
+  Thread identifiers, anchors, and their original messages for summarization.
 ```
 
 ## State
@@ -90,4 +93,7 @@ _message(message: Message) : optional (thread: Thread, topic: Topic, anchor: Anc
 
 _topicThreads(topic: Topic) : many (thread: Thread, anchor: Anchor, messages: MessageList)
   Answers every thread for the topic, ordered by anchor, opening time, and thread identity. Each thread includes its opening message and replies by posting time and message identity.
+
+_topicDiscussion(topic: Topic) : optional (items: DiscussionItems)
+  Answers the grouped thread content for the summary operation.
 ```

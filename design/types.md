@@ -12,6 +12,12 @@ concrete MediaSource
 
 concrete SessionSubject
   An Authenticating.Account identity or an opaque server-issued guest identity.
+
+concrete VideoSecond
+  A finite nonnegative position in a video, measured in seconds.
+
+concrete DiscussionContext
+  Whether a discussion post was made LIVE or during HISTORICAL review.
 ```
 
 ```instances
@@ -32,4 +38,13 @@ instantiate Watching with
   Scope is RoomJoining.Room
   Viewer is RoomJoining.Participant
   Media is MediaSource
+
+instantiate Discussing with
+  Topic is Watching.VideoEntry
+  Author is RoomJoining.Participant
+  Anchor is VideoSecond
+  Context is DiscussionContext
+
+instantiate Summarizing with
+  Topic is Watching.VideoEntry
 ```

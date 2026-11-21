@@ -3,6 +3,10 @@ import authenticatingSpec from "@design/concepts/Authenticating.md" with { type:
 import sessioningSpec from "@design/concepts/Sessioning.md" with { type: "text" };
 import presenceSpec from "@design/concepts/Presence.md" with { type: "text" };
 import watchingSpec from "@design/concepts/Watching.md" with { type: "text" };
+import discussingSpec from "@design/concepts/Discussing.md" with { type: "text" };
+import summarizingSpec from "@design/concepts/Summarizing.md" with { type: "text" };
+import { DiscussingConcept, InvalidMessage, ThreadUnavailable } from "./concepts/Discussing.ts";
+import { SummarizingConcept, SummaryUnavailable } from "./concepts/Summarizing.ts";
 import { youtubeSource, type MediaSource } from "./media-source.ts";
 import type { PlaybackCommand, Snapshot, VideoEntry } from "./concepts/Watching.ts";
 import roomJoiningSpec from "@design/concepts/RoomJoining.md" with { type: "text" };
@@ -107,9 +111,26 @@ const watching = registerConcept({
   },
 });
 
+export class Discussing extends DiscussingConcept<VideoEntry, Participant> {}
+const discussing = registerConcept({
+  class: Discussing, spec: discussingSpec,
+  refusals: { INVALID_MESSAGE: InvalidMessage, THREAD_UNAVAILABLE: ThreadUnavailable },
+});
+export class Summarizing extends SummarizingConcept<VideoEntry> {}
+const summarizing = registerConcept({
+  class: Summarizing, spec: summarizingSpec,
+  refusals: { SUMMARY_UNAVAILABLE: SummaryUnavailable },
+});
+
 export const applicationConceptSet = conceptSet(
-  { Authenticating: authenticating, Sessioning: sessioning, Presence: presence, RoomJoining: roomJoining, Watching: watching },
+  { Authenticating: authenticating, Sessioning: sessioning, Presence: presence, RoomJoining: roomJoining, Watching: watching, Discussing: discussing, Summarizing: summarizing },
   {
+    listedVideo: ({ entries, entry }: { entries: { entry: VideoEntry }[]; entry: VideoEntry }) =>
+      ({ listed: entries.some(video => video.entry === entry) }),
+    liveVideo: ({ snapshot, entry }: { snapshot: Snapshot; entry: VideoEntry }) =>
+      ({ live: snapshot.activeEntry === entry && !snapshot.endedAt }),
+    isHistorical: ({ mode }: { mode: "LIVE" | "HISTORICAL" }) =>
+      ({ historical: mode === "HISTORICAL" }),
     youtubeSource: ({ videoId, previewTitle }: { videoId: string; previewTitle?: string | null }) => youtubeSource(videoId, previewTitle),
     watchLive: ({ snapshot }: { snapshot: Snapshot }) => ({ live: !!snapshot.activeEntry && !snapshot.endedAt }),
     watchRevision: ({ snapshot }: { snapshot: Snapshot }) => snapshot.revision,

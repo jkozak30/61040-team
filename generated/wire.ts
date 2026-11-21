@@ -81,6 +81,74 @@ export type WatchPartyWire = {
     };
     error: { error: AppWideError | "INVALID_INPUT" | "INVALID_PASSWORD" | "INVALID_USERNAME" | "REPLACE_NOT_SIGNED_IN" | "USERNAME_TAKEN" };
   };
+  "/discussion/reply": {
+    input: {
+      "connection"?: Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Presence"]["_connectionPresence"]>[0], ["connection"]>>;
+      "mode": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.computations)["isHistorical"]["fn"]>[0], ["mode"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["reply"]>[0], ["context"]>]>>;
+      "parent": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_message"]>[0], ["message"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["reply"]>[0], ["parent"]>]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+      "session": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Sessioning"]["current"]>[0], ["session"]>>;
+      "text": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["reply"]>[0], ["text"]>>;
+    };
+    output: {
+      "message": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["reply"]>>, ["message"]>>;
+    } | {
+      "message": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["reply"]>>, ["message"]>>;
+    };
+    error: { error: AppWideError | "CURRENT_NOT_SIGNED_IN" | "FORBIDDEN" | "INVALID_INPUT" | "INVALID_MESSAGE" | "PRESENCE_UNAVAILABLE" | "THREAD_UNAVAILABLE" };
+  };
+  "/discussion/start-thread": {
+    input: {
+      "anchor": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>[0], ["anchor"]>>;
+      "connection"?: Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Presence"]["_connectionPresence"]>[0], ["connection"]>>;
+      "entry": Jsonify<OneOf<[AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.computations)["listedVideo"]["fn"]>[0], ["entry"]>, AtPath<Parameters<(typeof ApplicationConceptSet.computations)["liveVideo"]["fn"]>[0], ["entry"]>]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>[0], ["topic"]>]>>;
+      "mode": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.computations)["isHistorical"]["fn"]>[0], ["mode"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>[0], ["context"]>]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+      "session": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Sessioning"]["current"]>[0], ["session"]>>;
+      "text": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>[0], ["text"]>>;
+    };
+    output: {
+      "message": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>>, ["message"]>>;
+      "thread": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>>, ["thread"]>>;
+    } | {
+      "message": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>>, ["message"]>>;
+      "thread": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>>, ["thread"]>>;
+    };
+    error: { error: AppWideError | "CURRENT_NOT_SIGNED_IN" | "FORBIDDEN" | "INVALID_INPUT" | "INVALID_MESSAGE" | "PRESENCE_UNAVAILABLE" };
+  };
+  "/discussion/thread": {
+    input: {
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+      "session": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Sessioning"]["current"]>[0], ["session"]>>;
+      "thread": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_thread"]>[0], ["thread"]>>;
+    };
+    output: {
+      "anchor": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_thread"]>>>, ["anchor"]>>;
+      "entry": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.computations)["listedVideo"]["fn"]>[0], ["entry"]>, AtPath<Parameters<(typeof ApplicationConceptSet.computations)["liveVideo"]["fn"]>[0], ["entry"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_thread"]>>>, ["topic"]>]>>;
+      "messages": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_thread"]>>>, ["messages"]>>;
+      "thread": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_thread"]>[0], ["thread"]>>;
+    };
+    error: { error: AppWideError | "CURRENT_NOT_SIGNED_IN" | "FORBIDDEN" | "INVALID_INPUT" | "THREAD_UNAVAILABLE" };
+  };
+  "/discussion/threads": {
+    input: {
+      "entry": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.computations)["listedVideo"]["fn"]>[0], ["entry"]>, AtPath<Parameters<(typeof ApplicationConceptSet.computations)["liveVideo"]["fn"]>[0], ["entry"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_topicThreads"]>[0], ["topic"]>]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+      "session": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Sessioning"]["current"]>[0], ["session"]>>;
+    };
+    output: {
+      "threads": {
+        "anchor": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_topicThreads"]>>>, ["anchor"]>>;
+        "messages": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_topicThreads"]>>>, ["messages"]>>;
+        "thread": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_topicThreads"]>>>, ["thread"]>>;
+      }[];
+    };
+    error: { error: AppWideError | "CURRENT_NOT_SIGNED_IN" | "FORBIDDEN" | "INVALID_INPUT" };
+  };
   "/rooms/create": {
     input: {
       "name": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["create"]>[0], ["name"]>>;
@@ -190,6 +258,30 @@ export type WatchPartyWire = {
     };
     output: Record<string, never>;
     error: { error: AppWideError | "CURRENT_NOT_SIGNED_IN" | "FORBIDDEN" | "INVALID_INPUT" | "OWNERSHIP_TRANSFER_UNAVAILABLE" };
+  };
+  "/summary/read": {
+    input: {
+      "entry": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.computations)["listedVideo"]["fn"]>[0], ["entry"]>, AtPath<Parameters<(typeof ApplicationConceptSet.computations)["liveVideo"]["fn"]>[0], ["entry"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Summarizing"]["_summary"]>[0], ["topic"]>]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+      "session": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Sessioning"]["current"]>[0], ["session"]>>;
+    };
+    output: {
+      "summary": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Summarizing"]["_summary"]>>>, ["summary"]>> | null;
+    };
+    error: { error: AppWideError | "CURRENT_NOT_SIGNED_IN" | "FORBIDDEN" | "INVALID_INPUT" };
+  };
+  "/summary/request": {
+    input: {
+      "entry": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Summarizing"]["request"]>[0], ["topic"]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+      "session": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Sessioning"]["current"]>[0], ["session"]>>;
+    };
+    output: {
+      "summary": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Summarizing"]["request"]>>, ["summary"]>>;
+    };
+    error: { error: AppWideError | "CURRENT_NOT_SIGNED_IN" | "FORBIDDEN" | "INVALID_INPUT" | "SUMMARY_UNAVAILABLE" };
   };
   "/watch/add-video": {
     input: {
@@ -394,6 +486,70 @@ export type WatchPartyWireHttp = {
     };
     error: { error: HttpAppWideError | "CONFLICT" | "INVALID_REQUEST" | "UNAUTHORIZED" };
   };
+  "/discussion/reply": {
+    input: {
+      "connection"?: Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Presence"]["_connectionPresence"]>[0], ["connection"]>>;
+      "mode": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.computations)["isHistorical"]["fn"]>[0], ["mode"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["reply"]>[0], ["context"]>]>>;
+      "parent": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_message"]>[0], ["message"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["reply"]>[0], ["parent"]>]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+      "text": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["reply"]>[0], ["text"]>>;
+    };
+    output: {
+      "message": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["reply"]>>, ["message"]>>;
+    } | {
+      "message": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["reply"]>>, ["message"]>>;
+    };
+    error: { error: HttpAppWideError | "CONFLICT" | "FORBIDDEN" | "INTERNAL_ERROR" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+  };
+  "/discussion/start-thread": {
+    input: {
+      "anchor": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>[0], ["anchor"]>>;
+      "connection"?: Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Presence"]["_connectionPresence"]>[0], ["connection"]>>;
+      "entry": Jsonify<OneOf<[AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.computations)["listedVideo"]["fn"]>[0], ["entry"]>, AtPath<Parameters<(typeof ApplicationConceptSet.computations)["liveVideo"]["fn"]>[0], ["entry"]>]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>[0], ["topic"]>]>>;
+      "mode": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.computations)["isHistorical"]["fn"]>[0], ["mode"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>[0], ["context"]>]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+      "text": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>[0], ["text"]>>;
+    };
+    output: {
+      "message": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>>, ["message"]>>;
+      "thread": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>>, ["thread"]>>;
+    } | {
+      "message": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>>, ["message"]>>;
+      "thread": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["startThread"]>>, ["thread"]>>;
+    };
+    error: { error: HttpAppWideError | "CONFLICT" | "FORBIDDEN" | "INTERNAL_ERROR" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+  };
+  "/discussion/thread": {
+    input: {
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+      "thread": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_thread"]>[0], ["thread"]>>;
+    };
+    output: {
+      "anchor": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_thread"]>>>, ["anchor"]>>;
+      "entry": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.computations)["listedVideo"]["fn"]>[0], ["entry"]>, AtPath<Parameters<(typeof ApplicationConceptSet.computations)["liveVideo"]["fn"]>[0], ["entry"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_thread"]>>>, ["topic"]>]>>;
+      "messages": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_thread"]>>>, ["messages"]>>;
+      "thread": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_thread"]>[0], ["thread"]>>;
+    };
+    error: { error: HttpAppWideError | "FORBIDDEN" | "INTERNAL_ERROR" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+  };
+  "/discussion/threads": {
+    input: {
+      "entry": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.computations)["listedVideo"]["fn"]>[0], ["entry"]>, AtPath<Parameters<(typeof ApplicationConceptSet.computations)["liveVideo"]["fn"]>[0], ["entry"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_topicThreads"]>[0], ["topic"]>]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+    };
+    output: {
+      "threads": {
+        "anchor": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_topicThreads"]>>>, ["anchor"]>>;
+        "messages": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_topicThreads"]>>>, ["messages"]>>;
+        "thread": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Discussing"]["_topicThreads"]>>>, ["thread"]>>;
+      }[];
+    };
+    error: { error: HttpAppWideError | "FORBIDDEN" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+  };
   "/rooms/create": {
     input: {
       "name": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["create"]>[0], ["name"]>>;
@@ -489,6 +645,28 @@ export type WatchPartyWireHttp = {
     };
     output: Record<string, never>;
     error: { error: HttpAppWideError | "FORBIDDEN" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+  };
+  "/summary/read": {
+    input: {
+      "entry": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.computations)["listedVideo"]["fn"]>[0], ["entry"]>, AtPath<Parameters<(typeof ApplicationConceptSet.computations)["liveVideo"]["fn"]>[0], ["entry"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Summarizing"]["_summary"]>[0], ["topic"]>]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+    };
+    output: {
+      "summary": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Summarizing"]["_summary"]>>>, ["summary"]>> | null;
+    };
+    error: { error: HttpAppWideError | "FORBIDDEN" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+  };
+  "/summary/request": {
+    input: {
+      "entry": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Summarizing"]["request"]>[0], ["topic"]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+    };
+    output: {
+      "summary": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Summarizing"]["request"]>>, ["summary"]>>;
+    };
+    error: { error: HttpAppWideError | "FORBIDDEN" | "INTERNAL_ERROR" | "INVALID_REQUEST" | "UNAUTHORIZED" };
   };
   "/watch/add-video": {
     input: {

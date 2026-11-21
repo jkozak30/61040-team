@@ -27,7 +27,34 @@ Defined in [Authenticating](../design/concepts/Authenticating.md), line 1.
 
 #### Instances
 
-- `Authenticating` — instance of `Authenticating` — [Application types](../design/types.md), line 18.
+- `Authenticating` — instance of `Authenticating` — [Application types](../design/types.md), line 24.
+
+### Discussing
+
+Defined in [Discussing](../design/concepts/Discussing.md), line 1.
+
+#### Actions
+
+- `startThread(topic: Topic, author: Author, name: String, anchor: Anchor, text: String, context: Context) : returns (thread: Thread, message: Message)`
+  - Refuses `INVALID_MESSAGE`: Write a comment of 1 to 2000 characters.
+- `reply(parent: Message, author: Author, name: String, text: String, context: Context) : returns (message: Message)`
+  - Refuses `THREAD_UNAVAILABLE`: This discussion is no longer available.
+  - Refuses `INVALID_MESSAGE`: Write a reply of 1 to 2000 characters.
+
+#### Queries
+
+- `_thread(thread: Thread) : optional (topic: Topic, anchor: Anchor, messages: MessageList)`
+- `_message(message: Message) : optional (thread: Thread, topic: Topic, anchor: Anchor)`
+- `_topicThreads(topic: Topic) : many (thread: Thread, anchor: Anchor, messages: MessageList)`
+- `_topicDiscussion(topic: Topic) : optional (items: DiscussionItems)`
+
+#### Instances
+
+- `Discussing` — instance of `Discussing` — [Application types](../design/types.md), line 42.
+  - `Anchor` is `VideoSecond` — [Application types](../design/types.md), line 45.
+  - `Author` is `RoomJoining.Participant` — [Application types](../design/types.md), line 44.
+  - `Context` is `DiscussionContext` — [Application types](../design/types.md), line 46.
+  - `Topic` is `Watching.VideoEntry` — [Application types](../design/types.md), line 43.
 
 ### Presence
 
@@ -50,10 +77,10 @@ Defined in [Presence](../design/concepts/Presence.md), line 1.
 
 #### Instances
 
-- `Presence` — instance of `Presence` — [Application types](../design/types.md), line 23.
-  - `Connection` is `PlayerConnection` — [Application types](../design/types.md), line 26.
-  - `PresenceSubject` is `RoomJoining.Participant` — [Application types](../design/types.md), line 25.
-  - `Scope` is `RoomJoining.Room` — [Application types](../design/types.md), line 24.
+- `Presence` — instance of `Presence` — [Application types](../design/types.md), line 29.
+  - `Connection` is `PlayerConnection` — [Application types](../design/types.md), line 32.
+  - `PresenceSubject` is `RoomJoining.Participant` — [Application types](../design/types.md), line 31.
+  - `Scope` is `RoomJoining.Room` — [Application types](../design/types.md), line 30.
 
 ### RoomJoining
 
@@ -84,8 +111,8 @@ Defined in [RoomJoining](../design/concepts/RoomJoining.md), line 1.
 
 #### Instances
 
-- `RoomJoining` — instance of `RoomJoining` — [Application types](../design/types.md), line 28.
-  - `Identity` is `SessionSubject` — [Application types](../design/types.md), line 29.
+- `RoomJoining` — instance of `RoomJoining` — [Application types](../design/types.md), line 34.
+  - `Identity` is `SessionSubject` — [Application types](../design/types.md), line 35.
 
 ### Sessioning
 
@@ -107,8 +134,26 @@ Defined in [Sessioning](../design/concepts/Sessioning.md), line 1.
 
 #### Instances
 
-- `Sessioning` — instance of `Sessioning` — [Application types](../design/types.md), line 20.
-  - `Subject` is `SessionSubject` — [Application types](../design/types.md), line 21.
+- `Sessioning` — instance of `Sessioning` — [Application types](../design/types.md), line 26.
+  - `Subject` is `SessionSubject` — [Application types](../design/types.md), line 27.
+
+### Summarizing
+
+Defined in [Summarizing](../design/concepts/Summarizing.md), line 1.
+
+#### Actions
+
+- `request(topic: Topic, items: SummaryItems) : returns (summary: SummaryResult)`
+  - Refuses `SUMMARY_UNAVAILABLE`: Could not generate the overview. Try again after discussion.
+
+#### Queries
+
+- `_summary(topic: Topic) : optional (summary: SummaryResult)`
+
+#### Instances
+
+- `Summarizing` — instance of `Summarizing` — [Application types](../design/types.md), line 48.
+  - `Topic` is `Watching.VideoEntry` — [Application types](../design/types.md), line 49.
 
 ### Watching
 
@@ -139,18 +184,20 @@ Defined in [Watching](../design/concepts/Watching.md), line 1.
 
 #### Instances
 
-- `Watching` — instance of `Watching` — [Application types](../design/types.md), line 31.
-  - `Media` is `MediaSource` — [Application types](../design/types.md), line 34.
-  - `Scope` is `RoomJoining.Room` — [Application types](../design/types.md), line 32.
-  - `Viewer` is `RoomJoining.Participant` — [Application types](../design/types.md), line 33.
+- `Watching` — instance of `Watching` — [Application types](../design/types.md), line 37.
+  - `Media` is `MediaSource` — [Application types](../design/types.md), line 40.
+  - `Scope` is `RoomJoining.Room` — [Application types](../design/types.md), line 38.
+  - `Viewer` is `RoomJoining.Participant` — [Application types](../design/types.md), line 39.
 
 ## Application types
 
 Concrete types:
 
+- `DiscussionContext` — [Application types](../design/types.md), line 19.
 - `MediaSource` — [Application types](../design/types.md), line 10.
 - `PlayerConnection` — [Application types](../design/types.md), line 7.
 - `SessionSubject` — [Application types](../design/types.md), line 13.
+- `VideoSecond` — [Application types](../design/types.md), line 16.
 
 ## Computations
 
@@ -158,6 +205,9 @@ Concrete types:
 - `guestSubject() : SessionSubject` — [Accounts](../design/compositions/Accounts.md), line 30.
 - `identifySubject(subject: SessionSubject) : SessionIdentity` — [Accounts](../design/compositions/Accounts.md), line 36.
 - `isAccountIdentity(identity: SessionSubject) : (signedIn: Flag)` — [Rooms](../design/compositions/Rooms.md), line 75.
+- `isHistorical(mode: String) : (historical: Flag)` — [Discussion](../design/compositions/Discussion.md), line 71.
+- `listedVideo(entries: Watching.VideoList, entry: Watching.VideoEntry) : (listed: Flag)` — [Discussion](../design/compositions/Discussion.md), line 65.
+- `liveVideo(snapshot: Watching.WatchSnapshot, entry: Watching.VideoEntry) : (live: Flag)` — [Discussion](../design/compositions/Discussion.md), line 68.
 - `playbackCommand(entry: Watching.VideoEntry, expectedRevision: Number, operation: String, position?: Number, offset?: Number) : Watching.PlaybackCommand` — [Watch](../design/compositions/Watch.md), line 100.
 - `roomSubject(subject: SessionSubject) : RoomIdentity` — [Rooms](../design/compositions/Rooms.md), line 78.
 - `watchIdentity(subject: SessionSubject) : SessionSubject` — [Rooms](../design/compositions/Rooms.md), line 72.
@@ -172,6 +222,7 @@ _Views name reusable conditions. Multiple `where` blocks are alternatives._
 ### a session's membership in a room
 
 Authored path: `Rooms.RoomAccess`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 11.
 - Covered by [Rooms](../design/compositions/Rooms.md), line 49.
 - Covered by [Watch](../design/compositions/Watch.md), line 4.
 - Covered by [Watch](../design/compositions/Watch.md), line 12.
@@ -232,10 +283,39 @@ an owner's watch — inputs (room, participant, subject); outputs (stream); bind
     Watching._stream (scope: room) has (stream)
 ```
 
+### verified room membership and saved video entry
+
+Authored path: `Discussion.DiscussionAccess`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 8.
+- Covered by [Summary](../design/compositions/Summary.md), line 4.
+
+```view
+verified room membership and saved video entry — inputs (room, participant, subject, entry); outputs (stream, snapshot, entries, name, canonical, live); bindings () — answers at most one (stream, snapshot, entries, name, canonical, live)
+  where
+    view "a session's membership in a room" with (participant, room, subject) has (canonical, name)
+    Watching._stream (scope: room) has (entries, snapshot, stream)
+    (listed: true) is listedVideo (entries, entry)
+    (live) is liveVideo (entry, snapshot)
+```
+
 ## Formers
 
 _Formers name result shapes evaluated when asked. The source former owns_
 _the authored explanation; this section records the generated shape._
+
+### discussion threads on an entry
+
+Authored path: `Discussion.TopicThreads`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 50.
+
+```former
+Former "discussion threads on an entry" — inputs (entry); bindings (thread, anchor, messages); promises exactly one record — forms:
+  each Discussing._topicThreads (topic: entry) has (anchor, messages, thread)
+    form a record of
+      anchor
+      messages
+      thread
+```
 
 ### saved rooms for an account
 
@@ -585,6 +665,371 @@ where
   earlier, RequestBoundary.request (requestId)
 then
   RequestBoundary.respond (error: message, requestId)
+```
+
+### Discussion.ListThreads
+
+Authored path: `Discussion.ListThreads`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 38.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 56.
+
+```reaction
+when RequestBoundary.request (entry, participant, path: "/discussion/threads", requestId, room, session)
+then
+  Sessioning.current (session)
+```
+
+### Discussion.ListThreads:allowed#2
+
+Authored path: `Discussion.ListThreads`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 38.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 56.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.ListThreads
+where
+  earlier, RequestBoundary.request (entry, participant, path: "/discussion/threads", requestId, room, session)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject)
+then
+  RequestBoundary.respond (requestId, threads: former "discussion threads on an entry" with (entry))
+```
+
+### Discussion.ListThreads:denied#2
+
+Authored path: `Discussion.ListThreads`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 38.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 56.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.ListThreads
+where
+  earlier, RequestBoundary.request (entry, participant, path: "/discussion/threads", requestId, room, session)
+  no view "verified room membership and saved video entry" with (entry, participant, room, subject)
+then
+  RequestBoundary.respond (error: "FORBIDDEN", requestId)
+```
+
+### Discussion.ReadThread
+
+Authored path: `Discussion.ReadThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 39.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 57.
+
+```reaction
+when RequestBoundary.request (participant, path: "/discussion/thread", requestId, room, session, thread)
+then
+  Sessioning.current (session)
+```
+
+### Discussion.ReadThread:allowed#2
+
+Authored path: `Discussion.ReadThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 39.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 57.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.ReadThread
+where
+  earlier, RequestBoundary.request (participant, path: "/discussion/thread", requestId, room, session, thread)
+  Discussing._thread (thread) has (anchor, messages, topic: entry)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject)
+then
+  RequestBoundary.respond (anchor, entry, messages, requestId, thread)
+```
+
+### Discussion.ReadThread:denied#2
+
+Authored path: `Discussion.ReadThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 39.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 57.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.ReadThread
+where
+  earlier, RequestBoundary.request (participant, path: "/discussion/thread", requestId, room, session, thread)
+  Discussing._thread (thread) has (topic: entry)
+  no view "verified room membership and saved video entry" with (entry, participant, room, subject)
+then
+  RequestBoundary.respond (error: "FORBIDDEN", requestId)
+```
+
+### Discussion.ReadThread:unknown#2
+
+Authored path: `Discussion.ReadThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 39.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 57.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.ReadThread
+where
+  earlier, RequestBoundary.request (participant, path: "/discussion/thread", requestId, room, session, thread)
+  no Discussing._thread (thread)
+then
+  RequestBoundary.respond (error: "THREAD_UNAVAILABLE", requestId)
+```
+
+### Discussion.Reply
+
+Authored path: `Discussion.Reply`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 18.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 35.
+
+```reaction
+when RequestBoundary.request (connection, mode, parent, participant, path: "/discussion/reply", requestId, room, session, text)
+then
+  Sessioning.current (session)
+```
+
+### Discussion.Reply:absent#2
+
+Authored path: `Discussion.Reply`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 18.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 35.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.Reply
+where
+  earlier, RequestBoundary.request (connection, mode, parent, participant, path: "/discussion/reply", requestId, room, session, text)
+  Discussing._message (message: parent) has (topic: entry)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject) has (canonical, live: true)
+  (historical: false) is isHistorical (mode)
+  no Presence._connectionPresence (connection, scope: room, subject: canonical) has (present: true)
+then
+  RequestBoundary.respond (error: "PRESENCE_UNAVAILABLE", requestId)
+```
+
+### Discussion.Reply:denied#2
+
+Authored path: `Discussion.Reply`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 18.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 35.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.Reply
+where
+  earlier, RequestBoundary.request (connection, mode, parent, participant, path: "/discussion/reply", requestId, room, session, text)
+  Discussing._message (message: parent) has (topic: entry)
+  no view "verified room membership and saved video entry" with (entry, participant, room, subject)
+then
+  RequestBoundary.respond (error: "FORBIDDEN", requestId)
+```
+
+### Discussion.Reply:historical#2
+
+Authored path: `Discussion.Reply`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 18.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 35.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.Reply
+where
+  earlier, RequestBoundary.request (connection, mode, parent, participant, path: "/discussion/reply", requestId, room, session, text)
+  Discussing._message (message: parent) has (topic: entry)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject) has (canonical, name)
+  (historical: true) is isHistorical (mode)
+then
+  Discussing.reply (author: canonical, context: mode, name, parent, text)
+```
+
+### Discussion.Reply:historical#3
+
+Authored path: `Discussion.Reply`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 18.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 35.
+
+```reaction
+when Discussing.reply (author: canonical, context: mode, name, parent, text, message), asked by Discussion.Reply:historical#2
+where
+  earlier, RequestBoundary.request (connection, mode, parent, participant, path: "/discussion/reply", requestId, room, session, text)
+then
+  RequestBoundary.respond (message, requestId)
+```
+
+### Discussion.Reply:live#2
+
+Authored path: `Discussion.Reply`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 18.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 35.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.Reply
+where
+  earlier, RequestBoundary.request (connection, mode, parent, participant, path: "/discussion/reply", requestId, room, session, text)
+  Discussing._message (message: parent) has (topic: entry)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject) has (canonical, live: true, name)
+  (historical: false) is isHistorical (mode)
+  Presence._connectionPresence (connection, scope: room, subject: canonical) has (present: true)
+then
+  Discussing.reply (author: canonical, context: mode, name, parent, text)
+```
+
+### Discussion.Reply:live#3
+
+Authored path: `Discussion.Reply`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 18.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 35.
+
+```reaction
+when Discussing.reply (author: canonical, context: mode, name, parent, text, message), asked by Discussion.Reply:live#2
+where
+  earlier, RequestBoundary.request (connection, mode, parent, participant, path: "/discussion/reply", requestId, room, session, text)
+then
+  RequestBoundary.respond (message, requestId)
+```
+
+### Discussion.Reply:missing#2
+
+Authored path: `Discussion.Reply`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 18.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 35.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.Reply
+where
+  earlier, RequestBoundary.request (connection, mode, parent, participant, path: "/discussion/reply", requestId, room, session, text)
+  no Discussing._message (message: parent)
+then
+  RequestBoundary.respond (error: "THREAD_UNAVAILABLE", requestId)
+```
+
+### Discussion.Reply:not-live#2
+
+Authored path: `Discussion.Reply`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 18.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 35.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.Reply
+where
+  earlier, RequestBoundary.request (connection, mode, parent, participant, path: "/discussion/reply", requestId, room, session, text)
+  Discussing._message (message: parent) has (topic: entry)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject)
+  (historical: false) is isHistorical (mode)
+  no view "verified room membership and saved video entry" with (entry, participant, room, subject) has (live: true)
+then
+  RequestBoundary.respond (error: "PRESENCE_UNAVAILABLE", requestId)
+```
+
+### Discussion.StartThread
+
+Authored path: `Discussion.StartThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 10.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 34.
+
+```reaction
+when RequestBoundary.request (anchor, connection, entry, mode, participant, path: "/discussion/start-thread", requestId, room, session, text)
+then
+  Sessioning.current (session)
+```
+
+### Discussion.StartThread:absent#2
+
+Authored path: `Discussion.StartThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 10.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 34.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.StartThread
+where
+  earlier, RequestBoundary.request (anchor, connection, entry, mode, participant, path: "/discussion/start-thread", requestId, room, session, text)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject) has (canonical, live: true)
+  (historical: false) is isHistorical (mode)
+  no Presence._connectionPresence (connection, scope: room, subject: canonical) has (present: true)
+then
+  RequestBoundary.respond (error: "PRESENCE_UNAVAILABLE", requestId)
+```
+
+### Discussion.StartThread:denied#2
+
+Authored path: `Discussion.StartThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 10.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 34.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.StartThread
+where
+  earlier, RequestBoundary.request (anchor, connection, entry, mode, participant, path: "/discussion/start-thread", requestId, room, session, text)
+  no view "verified room membership and saved video entry" with (entry, participant, room, subject)
+then
+  RequestBoundary.respond (error: "FORBIDDEN", requestId)
+```
+
+### Discussion.StartThread:historical#2
+
+Authored path: `Discussion.StartThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 10.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 34.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.StartThread
+where
+  earlier, RequestBoundary.request (anchor, connection, entry, mode, participant, path: "/discussion/start-thread", requestId, room, session, text)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject) has (canonical, name)
+  (historical: true) is isHistorical (mode)
+then
+  Discussing.startThread (anchor, author: canonical, context: mode, name, text, topic: entry)
+```
+
+### Discussion.StartThread:historical#3
+
+Authored path: `Discussion.StartThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 10.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 34.
+
+```reaction
+when Discussing.startThread (anchor, author: canonical, context: mode, name, text, topic: entry, message, thread), asked by Discussion.StartThread:historical#2
+where
+  earlier, RequestBoundary.request (anchor, connection, entry, mode, participant, path: "/discussion/start-thread", requestId, room, session, text)
+then
+  RequestBoundary.respond (message, requestId, thread)
+```
+
+### Discussion.StartThread:live#2
+
+Authored path: `Discussion.StartThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 10.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 34.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.StartThread
+where
+  earlier, RequestBoundary.request (anchor, connection, entry, mode, participant, path: "/discussion/start-thread", requestId, room, session, text)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject) has (canonical, live: true, name)
+  (historical: false) is isHistorical (mode)
+  Presence._connectionPresence (connection, scope: room, subject: canonical) has (present: true)
+then
+  Discussing.startThread (anchor, author: canonical, context: mode, name, text, topic: entry)
+```
+
+### Discussion.StartThread:live#3
+
+Authored path: `Discussion.StartThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 10.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 34.
+
+```reaction
+when Discussing.startThread (anchor, author: canonical, context: mode, name, text, topic: entry, message, thread), asked by Discussion.StartThread:live#2
+where
+  earlier, RequestBoundary.request (anchor, connection, entry, mode, participant, path: "/discussion/start-thread", requestId, room, session, text)
+then
+  RequestBoundary.respond (message, requestId, thread)
+```
+
+### Discussion.StartThread:not-live#2
+
+Authored path: `Discussion.StartThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 10.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 34.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.StartThread
+where
+  earlier, RequestBoundary.request (anchor, connection, entry, mode, participant, path: "/discussion/start-thread", requestId, room, session, text)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject)
+  (historical: false) is isHistorical (mode)
+  no view "verified room membership and saved video entry" with (entry, participant, room, subject) has (live: true)
+then
+  RequestBoundary.respond (error: "PRESENCE_UNAVAILABLE", requestId)
 ```
 
 ### Rooms.Create
@@ -1153,6 +1598,122 @@ where
   earlier, RequestBoundary.request (participant, path: "/rooms/transfer-ownership", requestId, room, session, successor)
   view "a room's owner" with (participant, room, subject)
   no view "a present account member eligible to own a room" with (participant: successor, room)
+then
+  RequestBoundary.respond (error: "FORBIDDEN", requestId)
+```
+
+### Summary.Read
+
+Authored path: `Summary.Read`.
+- Covered by [Summary](../design/compositions/Summary.md), line 3.
+- Covered by [Summary](../design/compositions/Summary.md), line 16.
+
+```reaction
+when RequestBoundary.request (entry, participant, path: "/summary/read", requestId, room, session)
+then
+  Sessioning.current (session)
+```
+
+### Summary.Read:denied#2
+
+Authored path: `Summary.Read`.
+- Covered by [Summary](../design/compositions/Summary.md), line 3.
+- Covered by [Summary](../design/compositions/Summary.md), line 16.
+
+```reaction
+when Sessioning.current (session, subject), asked by Summary.Read
+where
+  earlier, RequestBoundary.request (entry, participant, path: "/summary/read", requestId, room, session)
+  no view "verified room membership and saved video entry" with (entry, participant, room, subject)
+then
+  RequestBoundary.respond (error: "FORBIDDEN", requestId)
+```
+
+### Summary.Read:empty#2
+
+Authored path: `Summary.Read`.
+- Covered by [Summary](../design/compositions/Summary.md), line 3.
+- Covered by [Summary](../design/compositions/Summary.md), line 16.
+
+```reaction
+when Sessioning.current (session, subject), asked by Summary.Read
+where
+  earlier, RequestBoundary.request (entry, participant, path: "/summary/read", requestId, room, session)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject)
+  no Summarizing._summary (topic: entry)
+then
+  RequestBoundary.respond (requestId, summary: null)
+```
+
+### Summary.Read:exists#2
+
+Authored path: `Summary.Read`.
+- Covered by [Summary](../design/compositions/Summary.md), line 3.
+- Covered by [Summary](../design/compositions/Summary.md), line 16.
+
+```reaction
+when Sessioning.current (session, subject), asked by Summary.Read
+where
+  earlier, RequestBoundary.request (entry, participant, path: "/summary/read", requestId, room, session)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject)
+  Summarizing._summary (topic: entry) has (summary)
+then
+  RequestBoundary.respond (requestId, summary)
+```
+
+### Summary.Request
+
+Authored path: `Summary.Request`.
+- Covered by [Summary](../design/compositions/Summary.md), line 8.
+- Covered by [Summary](../design/compositions/Summary.md), line 17.
+
+```reaction
+when RequestBoundary.request (entry, participant, path: "/summary/request", requestId, room, session)
+then
+  Sessioning.current (session)
+```
+
+### Summary.Request:allowed#2
+
+Authored path: `Summary.Request`.
+- Covered by [Summary](../design/compositions/Summary.md), line 8.
+- Covered by [Summary](../design/compositions/Summary.md), line 17.
+
+```reaction
+when Sessioning.current (session, subject), asked by Summary.Request
+where
+  earlier, RequestBoundary.request (entry, participant, path: "/summary/request", requestId, room, session)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject)
+  Discussing._topicDiscussion (topic: entry) has (items)
+then
+  Summarizing.request (items, topic: entry)
+```
+
+### Summary.Request:allowed#3
+
+Authored path: `Summary.Request`.
+- Covered by [Summary](../design/compositions/Summary.md), line 8.
+- Covered by [Summary](../design/compositions/Summary.md), line 17.
+
+```reaction
+when Summarizing.request (items, topic: entry, summary), asked by Summary.Request:allowed#2
+where
+  earlier, RequestBoundary.request (entry, participant, path: "/summary/request", requestId, room, session)
+then
+  RequestBoundary.respond (requestId, summary)
+```
+
+### Summary.Request:denied#2
+
+Authored path: `Summary.Request`.
+- Covered by [Summary](../design/compositions/Summary.md), line 8.
+- Covered by [Summary](../design/compositions/Summary.md), line 17.
+
+```reaction
+when Sessioning.current (session, subject), asked by Summary.Request
+where
+  earlier, RequestBoundary.request (entry, participant, path: "/summary/request", requestId, room, session)
+  no view "verified room membership and saved video entry" with (entry, participant, room, subject)
 then
   RequestBoundary.respond (error: "FORBIDDEN", requestId)
 ```
@@ -1840,6 +2401,10 @@ not listed here have no explicit input contract.
 - `/auth/logout` — requires `session`
 - `/auth/me` — requires `session`
 - `/auth/register` — requires `password`, `session`, `username`
+- `/discussion/reply` — requires `session`, `room`, `participant`, `parent`, `text`, `mode`; fills `connection` with null when absent
+- `/discussion/start-thread` — requires `session`, `room`, `participant`, `entry`, `anchor`, `text`, `mode`; fills `connection` with null when absent
+- `/discussion/thread` — requires `participant`, `room`, `session`, `thread`
+- `/discussion/threads` — requires `entry`, `participant`, `room`, `session`
 - `/rooms/create` — requires `name`, `session`
 - `/rooms/history` — requires `session`
 - `/rooms/join` — requires `session`, `code`; fills `name` with "" when absent
@@ -1849,6 +2414,8 @@ not listed here have no explicit input contract.
 - `/rooms/reopen` — requires `room`, `session`
 - `/rooms/sign-in-and-claim` — requires `participant`, `password`, `session`, `username`
 - `/rooms/transfer-ownership` — requires `participant`, `room`, `session`, `successor`
+- `/summary/read` — requires `entry`, `participant`, `room`, `session`
+- `/summary/request` — requires `entry`, `participant`, `room`, `session`
 - `/watch/add-video` — requires `session`, `room`, `participant`, `videoId`; fills `previewTitle` with null when absent
 - `/watch/control` — requires `session`, `room`, `participant`, `entry`, `expectedRevision`, `connection`, `operation`; fills `offset` with null when absent; fills `position` with null when absent
 - `/watch/end` — requires `connection`, `participant`, `room`, `session`

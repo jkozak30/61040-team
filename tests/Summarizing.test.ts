@@ -9,7 +9,7 @@ const items = [{ thread: "thread-1", anchor: 12, messages: [{ message: "msg-1", 
 test("generates summary from existing discussion and saves references", async () => {
   let observedPrompt = "";
   const summaries = new SummarizingConcept(db.db, async (prompt) => { observedPrompt = prompt; return "Why? [thread-1]"; });
-  const result = await summaries.request({ topic: "entry-1", items });
+  const result = await summaries.request({ topic: "entry-1", items, expectedVersion: 0 });
   expect(result.summary.referencedThreads.map(String)).toEqual(["thread-1"]);
   expect(observedPrompt).toContain("Why?");
   const other = new SummarizingConcept(db.db);
@@ -17,19 +17,56 @@ test("generates summary from existing discussion and saves references", async ()
 });
 test("empty discussions and generator errors do not erase prior summary", async () => {
   const good = new SummarizingConcept(db.db, async () => "Saved summary [thread-1]");
-  await good.request({ topic: "entry-1", items });
-  await expect(good.request({ topic: "entry-2", items: [] })).rejects.toBeInstanceOf(SummaryUnavailable);
+  await good.request({ topic: "entry-1", items, expectedVersion: 0 });
+  await expect(good.request({ topic: "entry-2", items: [], expectedVersion: 0 })).rejects.toBeInstanceOf(SummaryUnavailable);
   const bad = new SummarizingConcept(db.db, async () => { throw new Error("API failure"); });
-  await expect(bad.request({ topic: "entry-1", items })).rejects.toBeInstanceOf(SummaryUnavailable);
+  await expect(bad.request({ topic: "entry-1", items, expectedVersion: 0 })).rejects.toBeInstanceOf(SummaryUnavailable);
   expect((await bad._summary({ topic: "entry-1" }))[0]?.summary.text).toBe("Saved summary [thread-1]");
 });
 
 test("only cited input threads are saved as references", async () => {
   const second = { ...items[0]!, thread: "thread-2" } as SummaryItem;
   const summaries = new SummarizingConcept(db.db, async () => "Review the first question [thread-1].");
-  const saved = await summaries.request({ topic: "entry", items: [...items, second] });
+  const saved = await summaries.request({ topic: "entry", items: [...items, second], expectedVersion: 0 });
   expect(saved.summary.referencedThreads.map(String)).toEqual(["thread-1"]);
   const invalid = new SummarizingConcept(db.db, async () => "Unrelated claim [unknown-thread].");
-  await expect(invalid.request({ topic: "entry", items })).rejects.toBeInstanceOf(SummaryUnavailable);
+  await expect(invalid.request({ topic: "entry", items, expectedVersion: 0 })).rejects.toBeInstanceOf(SummaryUnavailable);
   expect((await invalid._summary({ topic: "entry" }))[0]?.summary).toEqual(saved.summary);
+});
+
+test("deleted text is excluded and invalidating removes an older overview", async () => {
+  let prompt = "";
+  const summaries = new SummarizingConcept(db.db, async (value) => { prompt = value; return "Answer [thread-1]"; });
+  await summaries.request({ topic: "entry", items, expectedVersion: 0 });
+  await summaries.invalidate({ topic: "entry" });
+  expect(await summaries._summary({ topic: "entry" })).toEqual([]);
+  const deleted = { ...items[0]!, messages: [{ ...items[0]!.messages[0]!, text: "", deletedAt: new Date() }] } as SummaryItem;
+  await expect(summaries.request({ topic: "entry", items: [deleted], expectedVersion: 1 })).rejects.toBeInstanceOf(SummaryUnavailable);
+  await summaries.request({ topic: "entry", items: [{ ...deleted, messages: [...deleted.messages, { ...deleted.messages[0]!, text: "Answer", deletedAt: undefined }] }], expectedVersion: 1 });
+  expect(prompt).toContain("Answer");
+  expect(prompt).not.toContain("Why?");
+});
+
+test("an in-flight overview cannot restore text after invalidation", async () => {
+  let start!: () => void;
+  let finish!: (text: string) => void;
+  const started = new Promise<void>((resolve) => { start = resolve; });
+  const generated = new Promise<string>((resolve) => { finish = resolve; });
+  const summaries = new SummarizingConcept(db.db, async () => { start(); return generated; });
+  const pending = summaries.request({ topic: "entry", items, expectedVersion: 0 });
+  await started;
+  await summaries.invalidate({ topic: "entry" });
+  finish("Old text [thread-1]");
+  await expect(pending).rejects.toBeInstanceOf(SummaryUnavailable);
+  expect(await summaries._summary({ topic: "entry" })).toEqual([]);
+});
+
+test("a version captured before a deletion rejects stale discussion items", async () => {
+  let generated = false;
+  const summaries = new SummarizingConcept(db.db, async () => { generated = true; return "Old text [thread-1]"; });
+  const [{ version }] = await summaries._version({ topic: "entry" });
+  await summaries.invalidate({ topic: "entry" });
+  await expect(summaries.request({ topic: "entry", items, expectedVersion: version })).rejects.toBeInstanceOf(SummaryUnavailable);
+  expect(generated).toBe(false);
+  expect(await summaries._summary({ topic: "entry" })).toEqual([]);
 });

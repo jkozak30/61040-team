@@ -127,7 +127,7 @@ const focusRequest = ref<{ thread: string; id: number }>();
 let focusId = 0;
 function applyLocalAction({ anchor, thread }: { anchor?: number; thread?: string }) {
   if (anchor !== undefined && Number.isFinite(anchor) && anchor >= 0) {
-    optimisticPosition.value = anchor;
+    optimisticPosition.value = undefined;
     localPosition.value = anchor;
     currentTime.value = anchor;
     player?.seekTo(anchor, true);

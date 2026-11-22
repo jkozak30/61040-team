@@ -19,13 +19,14 @@ const Read = endpoint("/summary/read",
       ));
 
 const Request = endpoint("/summary/request",
-  ({ session, room, participant, entry, subject, items, summary }) =>
+  ({ session, room, participant, entry, subject, version, items, summary }) =>
     receive({ session, room, participant, entry })
       .then(Sessioning.current({ session }).responds({ subject }))
       .then(
         where(DiscussionAccess({ room, participant, subject, entry }).is({}),
+          Summarizing._version({ topic: entry }).is({ version }),
           Discussing._topicDiscussion({ topic: entry }).is({ items }))
-          .then(Summarizing.request({ topic: entry, items }).responds({ summary }))
+          .then(Summarizing.request({ topic: entry, items, expectedVersion: version }).responds({ summary }))
           .then(respond({ summary })).named("allowed"),
         where(no(DiscussionAccess({ room, participant, subject, entry }).is({})))
           .then(respond({ error: "FORBIDDEN" })).named("denied"),

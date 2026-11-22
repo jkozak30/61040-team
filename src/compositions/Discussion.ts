@@ -3,7 +3,7 @@ import { compute, each, former, no, view, where } from "@mit-sdg/sync-engine/lan
 import { computations, concepts } from "../concepts.ts";
 import { RoomAccess } from "./Rooms.ts";
 
-const { Sessioning, RoomJoining, Presence, Watching, Discussing } = concepts;
+const { Sessioning, RoomJoining, Presence, Watching, Discussing, Summarizing } = concepts;
 
 export const DiscussionAccess = view("verified room membership and saved video entry",
   ({ room, participant, subject, entry }, { stream, snapshot, entries, name, canonical, live }, {}) => where(
@@ -11,6 +11,12 @@ export const DiscussionAccess = view("verified room membership and saved video e
     Watching._stream({ scope: room }).is({ stream, snapshot, entries }),
     compute(computations.listedVideo, { entries, entry }, { listed: true }),
     compute(computations.liveVideo, { snapshot, entry }, { live }),
+  )).optional();
+
+const OwnedMessage = view("an editable comment owned by this room member",
+  ({ room, participant, subject, message }, { entry, canonical }, {}) => where(
+    Discussing._editableMessage({ message }).is({ topic: entry, author: canonical }),
+    DiscussionAccess({ room, participant, subject, entry }).is({ canonical }),
   )).optional();
 
 const TopicThreads = former("discussion threads on an entry", ({ entry }, { thread, anchor, messages }) =>
@@ -114,4 +120,36 @@ const Reply = endpoint("/discussion/reply",
           .then(respond({ error: "PRESENCE_UNAVAILABLE" })).named("absent"),
       ), { ...opts, input: { required: ["session", "room", "participant", "parent", "text", "mode"], defaults: { connection: null } } });
 
-export const composition = { DiscussionAccess, TopicThreads, ListThreads, ReadThread, StartThread, Reply };
+const EditMessage = endpoint("/discussion/edit-message",
+  ({ session, room, participant, message, text, subject, entry, canonical }) =>
+    receive({ session, room, participant, message, text })
+      .then(Sessioning.current({ session }).responds({ subject }))
+      .then(
+        where(OwnedMessage({ room, participant, subject, message }).is({ entry, canonical }))
+          .then(Discussing.editMessage({ message, author: canonical, text }).responds({ topic: entry }))
+          .then(Summarizing.invalidate({ topic: entry }).responds({}))
+          .then(respond({ message })).named("allowed"),
+        where(no(Discussing._editableMessage({ message }).is({})))
+          .then(respond({ error: "THREAD_UNAVAILABLE" })).named("missing"),
+        where(Discussing._editableMessage({ message }).is({}),
+          no(OwnedMessage({ room, participant, subject, message }).is({})))
+          .then(respond({ error: "FORBIDDEN" })).named("denied"),
+      ), { ...opts, input: { required: ["session", "room", "participant", "message", "text"] } });
+
+const DeleteMessage = endpoint("/discussion/delete-message",
+  ({ session, room, participant, message, subject, entry, canonical }) =>
+    receive({ session, room, participant, message })
+      .then(Sessioning.current({ session }).responds({ subject }))
+      .then(
+        where(OwnedMessage({ room, participant, subject, message }).is({ entry, canonical }))
+          .then(Discussing.deleteMessage({ message, author: canonical }).responds({ topic: entry }))
+          .then(Summarizing.invalidate({ topic: entry }).responds({}))
+          .then(respond({ message })).named("allowed"),
+        where(no(Discussing._editableMessage({ message }).is({})))
+          .then(respond({ error: "THREAD_UNAVAILABLE" })).named("missing"),
+        where(Discussing._editableMessage({ message }).is({}),
+          no(OwnedMessage({ room, participant, subject, message }).is({})))
+          .then(respond({ error: "FORBIDDEN" })).named("denied"),
+      ), { ...opts, input: { required: ["session", "room", "participant", "message"] } });
+
+export const composition = { DiscussionAccess, OwnedMessage, TopicThreads, ListThreads, ReadThread, StartThread, Reply, EditMessage, DeleteMessage };

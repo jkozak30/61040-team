@@ -40,11 +40,17 @@ Defined in [Discussing](../design/concepts/Discussing.md), line 1.
 - `reply(parent: Message, author: Author, name: String, text: String, context: Context) : returns (message: Message)`
   - Refuses `THREAD_UNAVAILABLE`: This discussion is no longer available.
   - Refuses `INVALID_MESSAGE`: Write a reply of 1 to 2000 characters.
+- `editMessage(message: Message, author: Author, text: String) : returns (message: Message, topic: Topic)`
+  - Refuses `THREAD_UNAVAILABLE`: This comment is no longer available.
+  - Refuses `INVALID_MESSAGE`: Write a comment of 1 to 2000 characters.
+- `deleteMessage(message: Message, author: Author) : returns (message: Message, topic: Topic)`
+  - Refuses `THREAD_UNAVAILABLE`: This comment is no longer available.
 
 #### Queries
 
 - `_thread(thread: Thread) : optional (topic: Topic, anchor: Anchor, messages: MessageList)`
 - `_message(message: Message) : optional (thread: Thread, topic: Topic, anchor: Anchor)`
+- `_editableMessage(message: Message) : optional (thread: Thread, topic: Topic, author: Author)`
 - `_topicThreads(topic: Topic) : many (thread: Thread, anchor: Anchor, messages: MessageList)`
 - `_topicDiscussion(topic: Topic) : optional (items: DiscussionItems)`
 
@@ -143,11 +149,13 @@ Defined in [Summarizing](../design/concepts/Summarizing.md), line 1.
 
 #### Actions
 
-- `request(topic: Topic, items: SummaryItems) : returns (summary: SummaryResult)`
+- `request(topic: Topic, items: SummaryItems, expectedVersion: Number) : returns (summary: SummaryResult)`
   - Refuses `SUMMARY_UNAVAILABLE`: Could not generate the overview. Try again after discussion.
+- `invalidate(topic: Topic) : returns ()`
 
 #### Queries
 
+- `_version(topic: Topic) : optional (version: Number)`
 - `_summary(topic: Topic) : optional (summary: SummaryResult)`
 
 #### Instances
@@ -205,9 +213,9 @@ Concrete types:
 - `guestSubject() : SessionSubject` — [Accounts](../design/compositions/Accounts.md), line 30.
 - `identifySubject(subject: SessionSubject) : SessionIdentity` — [Accounts](../design/compositions/Accounts.md), line 36.
 - `isAccountIdentity(identity: SessionSubject) : (signedIn: Flag)` — [Rooms](../design/compositions/Rooms.md), line 75.
-- `isHistorical(mode: String) : (historical: Flag)` — [Discussion](../design/compositions/Discussion.md), line 71.
-- `listedVideo(entries: Watching.VideoList, entry: Watching.VideoEntry) : (listed: Flag)` — [Discussion](../design/compositions/Discussion.md), line 65.
-- `liveVideo(snapshot: Watching.WatchSnapshot, entry: Watching.VideoEntry) : (live: Flag)` — [Discussion](../design/compositions/Discussion.md), line 68.
+- `isHistorical(mode: String) : (historical: Flag)` — [Discussion](../design/compositions/Discussion.md), line 84.
+- `listedVideo(entries: Watching.VideoList, entry: Watching.VideoEntry) : (listed: Flag)` — [Discussion](../design/compositions/Discussion.md), line 78.
+- `liveVideo(snapshot: Watching.WatchSnapshot, entry: Watching.VideoEntry) : (live: Flag)` — [Discussion](../design/compositions/Discussion.md), line 81.
 - `playbackCommand(entry: Watching.VideoEntry, expectedRevision: Number, operation: String, position?: Number, offset?: Number) : Watching.PlaybackCommand` — [Watch](../design/compositions/Watch.md), line 100.
 - `roomSubject(subject: SessionSubject) : RoomIdentity` — [Rooms](../design/compositions/Rooms.md), line 78.
 - `watchIdentity(subject: SessionSubject) : SessionSubject` — [Rooms](../design/compositions/Rooms.md), line 72.
@@ -271,18 +279,6 @@ a room's owner — inputs (room, participant, subject); outputs (name); bindings
   where view "a session's membership in a room" with (participant, room, subject) has (name, owner: true)
 ```
 
-### an owner's watch
-
-Authored path: `Watch.OwnerWatchAccess`.
-- Covered by [Watch](../design/compositions/Watch.md), line 14.
-
-```view
-an owner's watch — inputs (room, participant, subject); outputs (stream); bindings () — answers at most one (stream)
-  where
-    view "a room's owner" with (participant, room, subject)
-    Watching._stream (scope: room) has (stream)
-```
-
 ### verified room membership and saved video entry
 
 Authored path: `Discussion.DiscussionAccess`.
@@ -296,6 +292,30 @@ verified room membership and saved video entry — inputs (room, participant, su
     Watching._stream (scope: room) has (entries, snapshot, stream)
     (listed: true) is listedVideo (entries, entry)
     (live) is liveVideo (entry, snapshot)
+```
+
+### an editable comment owned by this room member
+
+Authored path: `Discussion.OwnedMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 65.
+
+```view
+an editable comment owned by this room member — inputs (room, participant, subject, message); outputs (entry, canonical); bindings () — answers at most one (entry, canonical)
+  where
+    Discussing._editableMessage (message) has (author: canonical, topic: entry)
+    view "verified room membership and saved video entry" with (entry, participant, room, subject) has (canonical)
+```
+
+### an owner's watch
+
+Authored path: `Watch.OwnerWatchAccess`.
+- Covered by [Watch](../design/compositions/Watch.md), line 14.
+
+```view
+an owner's watch — inputs (room, participant, subject); outputs (stream); bindings () — answers at most one (stream)
+  where
+    view "a room's owner" with (participant, room, subject)
+    Watching._stream (scope: room) has (stream)
 ```
 
 ## Formers
@@ -665,6 +685,176 @@ where
   earlier, RequestBoundary.request (requestId)
 then
   RequestBoundary.respond (error: message, requestId)
+```
+
+### Discussion.DeleteMessage
+
+Authored path: `Discussion.DeleteMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 74.
+
+```reaction
+when RequestBoundary.request (message, participant, path: "/discussion/delete-message", requestId, room, session)
+then
+  Sessioning.current (session)
+```
+
+### Discussion.DeleteMessage:allowed#2
+
+Authored path: `Discussion.DeleteMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 74.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.DeleteMessage
+where
+  earlier, RequestBoundary.request (message, participant, path: "/discussion/delete-message", requestId, room, session)
+  view "an editable comment owned by this room member" with (message, participant, room, subject) has (canonical, entry)
+then
+  Discussing.deleteMessage (author: canonical, message)
+```
+
+### Discussion.DeleteMessage:allowed#3
+
+Authored path: `Discussion.DeleteMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 74.
+
+```reaction
+when Discussing.deleteMessage (author: canonical, message, topic: entry), asked by Discussion.DeleteMessage:allowed#2
+then
+  Summarizing.invalidate (topic: entry)
+```
+
+### Discussion.DeleteMessage:allowed#4
+
+Authored path: `Discussion.DeleteMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 74.
+
+```reaction
+when Summarizing.invalidate (topic: entry), asked by Discussion.DeleteMessage:allowed#3
+where
+  earlier, Discussing.deleteMessage (author: canonical, message, topic: entry), asked by Discussion.DeleteMessage:allowed#2
+  earlier, RequestBoundary.request (message, participant, path: "/discussion/delete-message", requestId, room, session)
+then
+  RequestBoundary.respond (message, requestId)
+```
+
+### Discussion.DeleteMessage:denied#2
+
+Authored path: `Discussion.DeleteMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 74.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.DeleteMessage
+where
+  earlier, RequestBoundary.request (message, participant, path: "/discussion/delete-message", requestId, room, session)
+  Discussing._editableMessage (message)
+  no view "an editable comment owned by this room member" with (message, participant, room, subject)
+then
+  RequestBoundary.respond (error: "FORBIDDEN", requestId)
+```
+
+### Discussion.DeleteMessage:missing#2
+
+Authored path: `Discussion.DeleteMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 74.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.DeleteMessage
+where
+  earlier, RequestBoundary.request (message, participant, path: "/discussion/delete-message", requestId, room, session)
+  no Discussing._editableMessage (message)
+then
+  RequestBoundary.respond (error: "THREAD_UNAVAILABLE", requestId)
+```
+
+### Discussion.EditMessage
+
+Authored path: `Discussion.EditMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 73.
+
+```reaction
+when RequestBoundary.request (message, participant, path: "/discussion/edit-message", requestId, room, session, text)
+then
+  Sessioning.current (session)
+```
+
+### Discussion.EditMessage:allowed#2
+
+Authored path: `Discussion.EditMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 73.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.EditMessage
+where
+  earlier, RequestBoundary.request (message, participant, path: "/discussion/edit-message", requestId, room, session, text)
+  view "an editable comment owned by this room member" with (message, participant, room, subject) has (canonical, entry)
+then
+  Discussing.editMessage (author: canonical, message, text)
+```
+
+### Discussion.EditMessage:allowed#3
+
+Authored path: `Discussion.EditMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 73.
+
+```reaction
+when Discussing.editMessage (author: canonical, message, text, topic: entry), asked by Discussion.EditMessage:allowed#2
+then
+  Summarizing.invalidate (topic: entry)
+```
+
+### Discussion.EditMessage:allowed#4
+
+Authored path: `Discussion.EditMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 73.
+
+```reaction
+when Summarizing.invalidate (topic: entry), asked by Discussion.EditMessage:allowed#3
+where
+  earlier, Discussing.editMessage (author: canonical, message, text, topic: entry), asked by Discussion.EditMessage:allowed#2
+  earlier, RequestBoundary.request (message, participant, path: "/discussion/edit-message", requestId, room, session, text)
+then
+  RequestBoundary.respond (message, requestId)
+```
+
+### Discussion.EditMessage:denied#2
+
+Authored path: `Discussion.EditMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 73.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.EditMessage
+where
+  earlier, RequestBoundary.request (message, participant, path: "/discussion/edit-message", requestId, room, session, text)
+  Discussing._editableMessage (message)
+  no view "an editable comment owned by this room member" with (message, participant, room, subject)
+then
+  RequestBoundary.respond (error: "FORBIDDEN", requestId)
+```
+
+### Discussion.EditMessage:missing#2
+
+Authored path: `Discussion.EditMessage`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 73.
+
+```reaction
+when Sessioning.current (session, subject), asked by Discussion.EditMessage
+where
+  earlier, RequestBoundary.request (message, participant, path: "/discussion/edit-message", requestId, room, session, text)
+  no Discussing._editableMessage (message)
+then
+  RequestBoundary.respond (error: "THREAD_UNAVAILABLE", requestId)
 ```
 
 ### Discussion.ListThreads
@@ -1606,7 +1796,7 @@ then
 
 Authored path: `Summary.Read`.
 - Covered by [Summary](../design/compositions/Summary.md), line 3.
-- Covered by [Summary](../design/compositions/Summary.md), line 16.
+- Covered by [Summary](../design/compositions/Summary.md), line 20.
 
 ```reaction
 when RequestBoundary.request (entry, participant, path: "/summary/read", requestId, room, session)
@@ -1618,7 +1808,7 @@ then
 
 Authored path: `Summary.Read`.
 - Covered by [Summary](../design/compositions/Summary.md), line 3.
-- Covered by [Summary](../design/compositions/Summary.md), line 16.
+- Covered by [Summary](../design/compositions/Summary.md), line 20.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Read
@@ -1633,7 +1823,7 @@ then
 
 Authored path: `Summary.Read`.
 - Covered by [Summary](../design/compositions/Summary.md), line 3.
-- Covered by [Summary](../design/compositions/Summary.md), line 16.
+- Covered by [Summary](../design/compositions/Summary.md), line 20.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Read
@@ -1649,7 +1839,7 @@ then
 
 Authored path: `Summary.Read`.
 - Covered by [Summary](../design/compositions/Summary.md), line 3.
-- Covered by [Summary](../design/compositions/Summary.md), line 16.
+- Covered by [Summary](../design/compositions/Summary.md), line 20.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Read
@@ -1665,7 +1855,7 @@ then
 
 Authored path: `Summary.Request`.
 - Covered by [Summary](../design/compositions/Summary.md), line 8.
-- Covered by [Summary](../design/compositions/Summary.md), line 17.
+- Covered by [Summary](../design/compositions/Summary.md), line 21.
 
 ```reaction
 when RequestBoundary.request (entry, participant, path: "/summary/request", requestId, room, session)
@@ -1677,26 +1867,27 @@ then
 
 Authored path: `Summary.Request`.
 - Covered by [Summary](../design/compositions/Summary.md), line 8.
-- Covered by [Summary](../design/compositions/Summary.md), line 17.
+- Covered by [Summary](../design/compositions/Summary.md), line 21.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Request
 where
   earlier, RequestBoundary.request (entry, participant, path: "/summary/request", requestId, room, session)
   view "verified room membership and saved video entry" with (entry, participant, room, subject)
+  Summarizing._version (topic: entry) has (version)
   Discussing._topicDiscussion (topic: entry) has (items)
 then
-  Summarizing.request (items, topic: entry)
+  Summarizing.request (expectedVersion: version, items, topic: entry)
 ```
 
 ### Summary.Request:allowed#3
 
 Authored path: `Summary.Request`.
 - Covered by [Summary](../design/compositions/Summary.md), line 8.
-- Covered by [Summary](../design/compositions/Summary.md), line 17.
+- Covered by [Summary](../design/compositions/Summary.md), line 21.
 
 ```reaction
-when Summarizing.request (items, topic: entry, summary), asked by Summary.Request:allowed#2
+when Summarizing.request (expectedVersion: version, items, topic: entry, summary), asked by Summary.Request:allowed#2
 where
   earlier, RequestBoundary.request (entry, participant, path: "/summary/request", requestId, room, session)
 then
@@ -1707,7 +1898,7 @@ then
 
 Authored path: `Summary.Request`.
 - Covered by [Summary](../design/compositions/Summary.md), line 8.
-- Covered by [Summary](../design/compositions/Summary.md), line 17.
+- Covered by [Summary](../design/compositions/Summary.md), line 21.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Request
@@ -2401,6 +2592,8 @@ not listed here have no explicit input contract.
 - `/auth/logout` — requires `session`
 - `/auth/me` — requires `session`
 - `/auth/register` — requires `password`, `session`, `username`
+- `/discussion/delete-message` — requires `session`, `room`, `participant`, `message`
+- `/discussion/edit-message` — requires `session`, `room`, `participant`, `message`, `text`
 - `/discussion/reply` — requires `session`, `room`, `participant`, `parent`, `text`, `mode`; fills `connection` with null when absent
 - `/discussion/start-thread` — requires `session`, `room`, `participant`, `entry`, `anchor`, `text`, `mode`; fills `connection` with null when absent
 - `/discussion/thread` — requires `participant`, `room`, `session`, `thread`

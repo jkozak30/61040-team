@@ -7,10 +7,14 @@ An unknown overview returns no saved summary.
 
 A member [requests a new AI overview](reaction:Summary.Request) for a listed
 video entry. The composition retrieves the saved discussion threads directly from
-Discussing and passes those source messages to Summarizing. The service sends only
+Discussing after reading the overview version, then passes those source messages
+and the version to Summarizing. If a comment changes before the overview is saved,
+the request refuses the older version. The service sends only
 discussion text to Gemini, not the media audio or video itself. Generated content
 retains links to original thread identities. A failed generation preserves the
 last successful summary. An empty discussion yields a refusal.
+Editing or deleting a comment invalidates the saved overview for that video
+entry, so an older version of the comment is not presented as current.
 
 ```endpoints
 Summary.Read at /summary/read

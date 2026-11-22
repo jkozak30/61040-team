@@ -149,12 +149,13 @@ Defined in [Summarizing](../design/concepts/Summarizing.md), line 1.
 
 #### Actions
 
-- `request(topic: Topic, items: SummaryItems) : returns (summary: SummaryResult)`
+- `request(topic: Topic, items: SummaryItems, expectedVersion: Number) : returns (summary: SummaryResult)`
   - Refuses `SUMMARY_UNAVAILABLE`: Could not generate the overview. Try again after discussion.
 - `invalidate(topic: Topic) : returns ()`
 
 #### Queries
 
+- `_version(topic: Topic) : optional (version: Number)`
 - `_summary(topic: Topic) : optional (summary: SummaryResult)`
 
 #### Instances
@@ -1795,7 +1796,7 @@ then
 
 Authored path: `Summary.Read`.
 - Covered by [Summary](../design/compositions/Summary.md), line 3.
-- Covered by [Summary](../design/compositions/Summary.md), line 18.
+- Covered by [Summary](../design/compositions/Summary.md), line 20.
 
 ```reaction
 when RequestBoundary.request (entry, participant, path: "/summary/read", requestId, room, session)
@@ -1807,7 +1808,7 @@ then
 
 Authored path: `Summary.Read`.
 - Covered by [Summary](../design/compositions/Summary.md), line 3.
-- Covered by [Summary](../design/compositions/Summary.md), line 18.
+- Covered by [Summary](../design/compositions/Summary.md), line 20.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Read
@@ -1822,7 +1823,7 @@ then
 
 Authored path: `Summary.Read`.
 - Covered by [Summary](../design/compositions/Summary.md), line 3.
-- Covered by [Summary](../design/compositions/Summary.md), line 18.
+- Covered by [Summary](../design/compositions/Summary.md), line 20.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Read
@@ -1838,7 +1839,7 @@ then
 
 Authored path: `Summary.Read`.
 - Covered by [Summary](../design/compositions/Summary.md), line 3.
-- Covered by [Summary](../design/compositions/Summary.md), line 18.
+- Covered by [Summary](../design/compositions/Summary.md), line 20.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Read
@@ -1854,7 +1855,7 @@ then
 
 Authored path: `Summary.Request`.
 - Covered by [Summary](../design/compositions/Summary.md), line 8.
-- Covered by [Summary](../design/compositions/Summary.md), line 19.
+- Covered by [Summary](../design/compositions/Summary.md), line 21.
 
 ```reaction
 when RequestBoundary.request (entry, participant, path: "/summary/request", requestId, room, session)
@@ -1866,26 +1867,27 @@ then
 
 Authored path: `Summary.Request`.
 - Covered by [Summary](../design/compositions/Summary.md), line 8.
-- Covered by [Summary](../design/compositions/Summary.md), line 19.
+- Covered by [Summary](../design/compositions/Summary.md), line 21.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Request
 where
   earlier, RequestBoundary.request (entry, participant, path: "/summary/request", requestId, room, session)
   view "verified room membership and saved video entry" with (entry, participant, room, subject)
+  Summarizing._version (topic: entry) has (version)
   Discussing._topicDiscussion (topic: entry) has (items)
 then
-  Summarizing.request (items, topic: entry)
+  Summarizing.request (expectedVersion: version, items, topic: entry)
 ```
 
 ### Summary.Request:allowed#3
 
 Authored path: `Summary.Request`.
 - Covered by [Summary](../design/compositions/Summary.md), line 8.
-- Covered by [Summary](../design/compositions/Summary.md), line 19.
+- Covered by [Summary](../design/compositions/Summary.md), line 21.
 
 ```reaction
-when Summarizing.request (items, topic: entry, summary), asked by Summary.Request:allowed#2
+when Summarizing.request (expectedVersion: version, items, topic: entry, summary), asked by Summary.Request:allowed#2
 where
   earlier, RequestBoundary.request (entry, participant, path: "/summary/request", requestId, room, session)
 then
@@ -1896,7 +1898,7 @@ then
 
 Authored path: `Summary.Request`.
 - Covered by [Summary](../design/compositions/Summary.md), line 8.
-- Covered by [Summary](../design/compositions/Summary.md), line 19.
+- Covered by [Summary](../design/compositions/Summary.md), line 21.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Request

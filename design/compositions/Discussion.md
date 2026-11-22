@@ -59,7 +59,20 @@ Discussion.ReadThread at /discussion/thread
 
 An invalid or empty message leaves state unchanged. An unknown parent or
 video returns an unavailable response; a request without room access is
-forbidden. Discussing does not edit or delete messages in this checkpoint.
+forbidden.
+
+A member can [edit](reaction:Discussion.EditMessage) or [delete](reaction:Discussion.DeleteMessage)
+only their own comment. The [owned message view](view:Discussion.OwnedMessage)
+resolves its video entry and author through Discussing, then checks room
+membership and entry ownership. Editing
+replaces the text; deleting clears it while keeping the message identity and
+replies in place. Both changes remove the saved AI overview for that entry,
+which may contain the old text. A member can generate a fresh overview later.
+
+```endpoints
+Discussion.EditMessage at /discussion/edit-message
+Discussion.DeleteMessage at /discussion/delete-message
+```
 
 ```computations
 listedVideo(entries: Watching.VideoList, entry: Watching.VideoEntry) : (listed: Flag)

@@ -26,9 +26,11 @@ opaque SummaryResult
 ```state
 a set of Summaries with
   a topic Topic
-  a result SummaryResult
+  a version Number
+  an optional result SummaryResult
 
-Rule: Each topic has at most one saved summary, replaced only by a successful generation.
+Rule: Each topic has at most one saved summary, replaced only by a successful generation for its current version.
+Rule: Invalidating a topic removes its saved result and advances its version, so an earlier generation cannot restore it.
 ```
 
 ## Actions
@@ -40,8 +42,14 @@ request(topic: Topic, items: SummaryItems) : returns (summary: SummaryResult)
     refuses SUMMARY_UNAVAILABLE "Could not generate the overview. Try again after discussion."
   where valid discussion items are supplied and text generation succeeds
   then
-    save the generated text with original thread references and current server time;
+    save the generated text with original thread references and current server time only if the topic has not been invalidated during generation;
     returns summary
+
+invalidate(topic: Topic) : returns ()
+  where true
+  then
+    remove any saved summary for the topic and advance its version
+    returns
 ```
 
 ## Queries

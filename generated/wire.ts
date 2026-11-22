@@ -81,6 +81,31 @@ export type WatchPartyWire = {
     };
     error: { error: AppWideError | "INVALID_INPUT" | "INVALID_PASSWORD" | "INVALID_USERNAME" | "REPLACE_NOT_SIGNED_IN" | "USERNAME_TAKEN" };
   };
+  "/discussion/delete-message": {
+    input: {
+      "message": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["deleteMessage"]>[0], ["message"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_editableMessage"]>[0], ["message"]>]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+      "session": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Sessioning"]["current"]>[0], ["session"]>>;
+    };
+    output: {
+      "message": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["deleteMessage"]>[0], ["message"]>>;
+    };
+    error: { error: AppWideError | "CURRENT_NOT_SIGNED_IN" | "FORBIDDEN" | "INVALID_INPUT" | "THREAD_UNAVAILABLE" };
+  };
+  "/discussion/edit-message": {
+    input: {
+      "message": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["editMessage"]>[0], ["message"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_editableMessage"]>[0], ["message"]>]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+      "session": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Sessioning"]["current"]>[0], ["session"]>>;
+      "text": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["editMessage"]>[0], ["text"]>>;
+    };
+    output: {
+      "message": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["editMessage"]>[0], ["message"]>>;
+    };
+    error: { error: AppWideError | "CURRENT_NOT_SIGNED_IN" | "FORBIDDEN" | "INVALID_INPUT" | "INVALID_MESSAGE" | "THREAD_UNAVAILABLE" };
+  };
   "/discussion/reply": {
     input: {
       "connection"?: Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Presence"]["_connectionPresence"]>[0], ["connection"]>>;
@@ -485,6 +510,29 @@ export type WatchPartyWireHttp = {
       "account": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Authenticating"]["register"]>>, ["account"]>>;
     };
     error: { error: HttpAppWideError | "CONFLICT" | "INVALID_REQUEST" | "UNAUTHORIZED" };
+  };
+  "/discussion/delete-message": {
+    input: {
+      "message": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["deleteMessage"]>[0], ["message"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_editableMessage"]>[0], ["message"]>]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+    };
+    output: {
+      "message": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["deleteMessage"]>[0], ["message"]>>;
+    };
+    error: { error: HttpAppWideError | "FORBIDDEN" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
+  };
+  "/discussion/edit-message": {
+    input: {
+      "message": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["editMessage"]>[0], ["message"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["_editableMessage"]>[0], ["message"]>]>>;
+      "participant": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>[0], ["participant"]>>;
+      "room": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Watching"]["_stream"]>[0], ["scope"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["RoomJoining"]["_participant"]>>>, ["room"]>]>>;
+      "text": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["editMessage"]>[0], ["text"]>>;
+    };
+    output: {
+      "message": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Discussing"]["editMessage"]>[0], ["message"]>>;
+    };
+    error: { error: HttpAppWideError | "FORBIDDEN" | "INVALID_REQUEST" | "NOT_FOUND" | "UNAUTHORIZED" };
   };
   "/discussion/reply": {
     input: {

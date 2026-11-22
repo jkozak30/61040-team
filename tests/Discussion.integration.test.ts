@@ -98,6 +98,8 @@ test("room access and video ownership guard posts, thread links, and summaries",
     ["/summary/read", { ...guest, entry: first }],
     ["/summary/request", { ...guest, entry: first }],
     ["/discussion/reply", { ...guest, parent: opening.message, text: "Reply", mode: "HISTORICAL" }],
+    ["/discussion/edit-message", { ...guest, message: opening.message, text: "Changed" }],
+    ["/discussion/delete-message", { ...guest, message: opening.message }],
   ] as const) expect((await post(path, body, outsider)).status).toBe(403);
   expect((await post("/discussion/start-thread", { ...guest, entry: "foreign", anchor: 1, text: "Question", mode: "HISTORICAL" }, guestCookie)).status).toBe(403);
   expect((await post("/discussion/threads", { ...guest, entry: "foreign" }, guestCookie)).status).toBe(403);
@@ -118,4 +120,27 @@ test("overview cites original threads and failed regeneration preserves the prev
   generate = async () => "Unsupported claim [not-a-thread].";
   expect((await post("/summary/request", { ...host, entry: first }, hostCookie)).status).toBe(409);
   expect((await ok("/summary/read", { ...host, entry: first }, hostCookie)).summary).toEqual(result.summary);
+});
+
+test("only the author can edit or delete, and changes clear the old overview", async () => {
+  const { hostCookie, guestCookie, host, guest, first } = await setup();
+  const opened = await ok("/discussion/start-thread", { ...host, entry: first, anchor: 90, text: "Original question", mode: "HISTORICAL" }, hostCookie);
+  const reply = await ok("/discussion/reply", { ...guest, parent: opened.message, text: "Answer", mode: "HISTORICAL" }, guestCookie);
+  await ok("/summary/request", { ...host, entry: first }, hostCookie);
+  expect((await post("/discussion/edit-message", { ...guest, message: opened.message, text: "Taken over" }, guestCookie)).status).toBe(403);
+  expect((await post("/discussion/delete-message", { ...host, message: reply.message }, hostCookie)).status).toBe(403);
+  expect((await post("/discussion/edit-message", { ...host, message: opened.message, text: "  " }, hostCookie)).status).toBe(400);
+  await ok("/discussion/edit-message", { ...host, message: opened.message, text: "  Revised question  " }, hostCookie);
+  expect((await ok("/summary/read", { ...guest, entry: first }, guestCookie)).summary).toBeNull();
+  let thread = await ok("/discussion/thread", { ...guest, thread: opened.thread }, guestCookie);
+  expect(thread.messages[0]).toMatchObject({ text: "Revised question", editedAt: expect.any(String) });
+  expect(thread.messages[1]).toMatchObject({ message: reply.message, parent: opened.message, text: "Answer" });
+  await ok("/summary/request", { ...guest, entry: first }, guestCookie);
+  await ok("/discussion/delete-message", { ...host, message: opened.message }, hostCookie);
+  expect((await ok("/summary/read", { ...host, entry: first }, hostCookie)).summary).toBeNull();
+  thread = await ok("/discussion/thread", { ...guest, thread: opened.thread }, guestCookie);
+  expect(thread.messages[0]).toMatchObject({ text: "", deletedAt: expect.any(String) });
+  expect(thread.messages[1]).toMatchObject({ message: reply.message, parent: opened.message, text: "Answer" });
+  expect((await post("/discussion/edit-message", { ...host, message: opened.message, text: "Restore" }, hostCookie)).status).toBe(404);
+  expect((await post("/discussion/delete-message", { ...host, message: opened.message }, hostCookie)).status).toBe(404);
 });

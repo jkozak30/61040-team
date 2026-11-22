@@ -13,6 +13,8 @@ export interface DiscussionMessage<Author extends string> {
   text: string;
   context: DiscussionContext;
   postedAt: Date;
+  editedAt?: Date;
+  deletedAt?: Date;
 }
 interface ThreadDocument<Topic extends string, Author extends string> {
   _id: Thread;
@@ -66,9 +68,37 @@ export class DiscussingConcept<Topic extends string = string, Author extends str
     return { message };
   }
 
+  async editMessage({ message, author, text }: { message: Message; author: Author; text: string }) {
+    const clean = validate(text);
+    const changed = await this.threads.findOneAndUpdate(
+      { messages: { $elemMatch: { message, author, deletedAt: { $exists: false } } } },
+      { $set: { "messages.$.text": clean, "messages.$.editedAt": this.clock() } },
+      { returnDocument: "after" },
+    );
+    if (!changed) throw new ThreadUnavailable("This comment is no longer available.");
+    return { message, topic: changed.topic };
+  }
+
+  async deleteMessage({ message, author }: { message: Message; author: Author }) {
+    const changed = await this.threads.findOneAndUpdate(
+      { messages: { $elemMatch: { message, author, deletedAt: { $exists: false } } } },
+      { $set: { "messages.$.text": "", "messages.$.deletedAt": this.clock() } },
+      { returnDocument: "after" },
+    );
+    if (!changed) throw new ThreadUnavailable("This comment is no longer available.");
+    return { message, topic: changed.topic };
+  }
+
   async _message({ message }: { message: Message }) {
     const document = await this.threads.findOne({ "messages.message": message });
     return document ? [{ thread: document._id, topic: document.topic, anchor: document.anchor }] : [];
+  }
+
+  async _editableMessage({ message }: { message: Message }) {
+    const document = await this.threads.findOne({ messages: { $elemMatch: { message, deletedAt: { $exists: false } } } });
+    if (!document) return [];
+    const found = document.messages.find((item) => item.message === message)!;
+    return [{ thread: document._id, topic: document.topic, author: found.author }];
   }
 
   async _thread({ thread }: { thread: Thread }) {
@@ -88,10 +118,10 @@ export class DiscussingConcept<Topic extends string = string, Author extends str
       .map((doc) => ({ thread: doc._id, anchor: doc.anchor, messages: ordered(doc.messages) }));
   }
 }
-function validate(text: string, name: string) {
-  if (typeof text !== "string" || typeof name !== "string") throw new InvalidMessage("Write a comment of 1 to 2000 characters.");
+function validate(text: string, name?: string) {
+  if (typeof text !== "string" || (name !== undefined && typeof name !== "string")) throw new InvalidMessage("Write a comment of 1 to 2000 characters.");
   const cleaned = text.trim();
-  if (!cleaned || cleaned.length > 2000 || !name.trim() || name.trim().length > 32) {
+  if (!cleaned || cleaned.length > 2000 || (name !== undefined && (!name.trim() || name.trim().length > 32))) {
     throw new InvalidMessage("Write a comment of 1 to 2000 characters.");
   }
   return cleaned;

@@ -27,7 +27,7 @@ external Context
   Whether a message was posted during a shared watch or independent review.
 
 opaque MessageList
-  The opening message and replies, with each message's identity, parent, author, saved name, text, context, and posting time.
+  The opening message and replies, with each message's identity, parent, author, saved name, text, context, posting time, and optional edit or deletion time.
 
 opaque DiscussionItems
   Thread identifiers, anchors, and their original messages for summarization.
@@ -48,12 +48,15 @@ a set of Messages with
   a text String
   a context Context
   a postedAt DateTime
+  an optional editedAt DateTime
+  an optional deletedAt DateTime
 
 Rule: Each thread has exactly one message without a parent. It is the opening message.
 Rule: A reply's parent is an earlier message in the same thread.
 Rule: The topic and anchor of a thread do not change when a reply is added.
-Rule: Text is trimmed, nonempty, and at most 2000 UTF-16 code units. The saved name is nonempty.
+Rule: Text is trimmed, nonempty, and at most 2000 UTF-16 code units unless the message is deleted. A deleted message has empty text. The saved name is nonempty.
 Rule: Messages keep their original author and saved name if a participant later claims a guest visit.
+Rule: Editing or deleting a message does not change its identity, parent, author, context, or posting time.
 ```
 
 ## Actions
@@ -80,6 +83,28 @@ reply(parent: Message, author: Author, name: String, text: String, context: Cont
   then
     create a message in the parent's thread with that parent, author, name, trimmed text, context, and current server time
     returns message
+
+editMessage(message: Message, author: Author, text: String) : returns (message: Message, topic: Topic)
+  where the message is missing, deleted, or belongs to another author
+  then
+    refuses THREAD_UNAVAILABLE "This comment is no longer available."
+  where the trimmed text is empty or exceeds 2000 UTF-16 code units
+  then
+    refuses INVALID_MESSAGE "Write a comment of 1 to 2000 characters."
+  where the message is present, belongs to the author, and text is valid
+  then
+    replace its text with the trimmed text and set editedAt to current server time;
+    returns message, topic
+
+deleteMessage(message: Message, author: Author) : returns (message: Message, topic: Topic)
+  where the message is missing, deleted, or belongs to another author
+  then
+    refuses THREAD_UNAVAILABLE "This comment is no longer available."
+  where the message is present and belongs to the author
+  then
+    clear its text and set deletedAt to current server time;
+    keep the message so replies retain their parent;
+    returns message, topic
 ```
 
 ## Queries
@@ -90,6 +115,9 @@ _thread(thread: Thread) : optional (topic: Topic, anchor: Anchor, messages: Mess
 
 _message(message: Message) : optional (thread: Thread, topic: Topic, anchor: Anchor)
   Answers the parent message's thread, topic, and anchor for an authorized reply composition. Answers no row for an unknown message.
+
+_editableMessage(message: Message) : optional (thread: Thread, topic: Topic, author: Author)
+  Answers the author and topic of a message that has not been deleted, for guarded edits and deletion.
 
 _topicThreads(topic: Topic) : many (thread: Thread, anchor: Anchor, messages: MessageList)
   Answers every thread for the topic, ordered by anchor, opening time, and thread identity. Each thread includes its opening message and replies by posting time and message identity.

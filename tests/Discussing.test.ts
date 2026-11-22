@@ -65,3 +65,20 @@ test("concurrent replies from separate instances are retained", async () => {
   expect(messages.map(({ message }) => message)).toEqual(expect.arrayContaining([opened.message, first.message, second.message]));
   expect(messages).toHaveLength(3);
 });
+
+test("authors can edit or delete their comments without removing replies", async () => {
+  const opened = await discussing.startThread({ topic: "entry", author: "bob", name: "Bob", anchor: 10, text: "Original", context: "LIVE" });
+  const reply = await discussing.reply({ parent: opened.message, author: "alice", name: "Alice", text: "Answer", context: "LIVE" });
+  await expect(discussing.editMessage({ message: opened.message, author: "alice", text: "Changed" })).rejects.toBeInstanceOf(ThreadUnavailable);
+  await expect(discussing.deleteMessage({ message: reply.message, author: "bob" })).rejects.toBeInstanceOf(ThreadUnavailable);
+  await expect(discussing.editMessage({ message: opened.message, author: "bob", text: "  Revised  " })).resolves.toMatchObject({ topic: "entry" });
+  let messages = (await discussing._thread({ thread: opened.thread }))[0]!.messages;
+  expect(messages[0]).toMatchObject({ text: "Revised", editedAt: now, author: "bob", postedAt: now });
+  await discussing.deleteMessage({ message: opened.message, author: "bob" });
+  messages = (await discussing._thread({ thread: opened.thread }))[0]!.messages;
+  expect(messages[0]).toMatchObject({ text: "", deletedAt: now, author: "bob" });
+  expect(messages[1]).toMatchObject({ message: reply.message, parent: opened.message, text: "Answer" });
+  expect(await discussing._editableMessage({ message: opened.message })).toEqual([]);
+  await expect(discussing.editMessage({ message: opened.message, author: "bob", text: "Restore" })).rejects.toBeInstanceOf(ThreadUnavailable);
+  await expect(discussing.deleteMessage({ message: opened.message, author: "bob" })).rejects.toBeInstanceOf(ThreadUnavailable);
+});

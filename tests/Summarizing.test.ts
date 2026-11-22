@@ -33,3 +33,30 @@ test("only cited input threads are saved as references", async () => {
   await expect(invalid.request({ topic: "entry", items })).rejects.toBeInstanceOf(SummaryUnavailable);
   expect((await invalid._summary({ topic: "entry" }))[0]?.summary).toEqual(saved.summary);
 });
+
+test("deleted text is excluded and invalidating removes an older overview", async () => {
+  let prompt = "";
+  const summaries = new SummarizingConcept(db.db, async (value) => { prompt = value; return "Answer [thread-1]"; });
+  await summaries.request({ topic: "entry", items });
+  await summaries.invalidate({ topic: "entry" });
+  expect(await summaries._summary({ topic: "entry" })).toEqual([]);
+  const deleted = { ...items[0]!, messages: [{ ...items[0]!.messages[0]!, text: "", deletedAt: new Date() }] } as SummaryItem;
+  await expect(summaries.request({ topic: "entry", items: [deleted] })).rejects.toBeInstanceOf(SummaryUnavailable);
+  await summaries.request({ topic: "entry", items: [{ ...deleted, messages: [...deleted.messages, { ...deleted.messages[0]!, text: "Answer", deletedAt: undefined }] }] });
+  expect(prompt).toContain("Answer");
+  expect(prompt).not.toContain("Why?");
+});
+
+test("an in-flight overview cannot restore text after invalidation", async () => {
+  let start!: () => void;
+  let finish!: (text: string) => void;
+  const started = new Promise<void>((resolve) => { start = resolve; });
+  const generated = new Promise<string>((resolve) => { finish = resolve; });
+  const summaries = new SummarizingConcept(db.db, async () => { start(); return generated; });
+  const pending = summaries.request({ topic: "entry", items });
+  await started;
+  await summaries.invalidate({ topic: "entry" });
+  finish("Old text [thread-1]");
+  await expect(pending).rejects.toBeInstanceOf(SummaryUnavailable);
+  expect(await summaries._summary({ topic: "entry" })).toEqual([]);
+});

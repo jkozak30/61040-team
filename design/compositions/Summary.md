@@ -11,6 +11,8 @@ Discussing and passes those source messages to Summarizing. The service sends on
 discussion text to Gemini, not the media audio or video itself. Generated content
 retains links to original thread identities. A failed generation preserves the
 last successful summary. An empty discussion yields a refusal.
+Editing or deleting a comment invalidates the saved overview for that video
+entry, so an older version of the comment is not presented as current.
 
 ```endpoints
 Summary.Read at /summary/read

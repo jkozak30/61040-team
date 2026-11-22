@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 const props = defineProps<{ room: string; participant: string; entry: string; revision?: number }>();
 const emit = defineEmits<{ openThread: [thread: string, anchor: number] }>();
 const summary = ref<{ text: string; referencedThreads: string[]; generatedAt: string } | null>(null);
@@ -10,6 +10,50 @@ let token = 0;
 let generation = 0;
 let poll: ReturnType<typeof setInterval> | undefined;
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+
+const summarySections = computed(() => {
+  const text = summary.value?.text ?? "";
+  const sections: { title: string; items: string[] }[] = [];
+  const headings = [
+    "Overview",
+    "Questions raised",
+    "What the discussion covered",
+    "Still open",
+  ];
+
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const heading = line
+      .replace(/^#{1,6}\s*/, "")
+      .replace(/\*\*/g, "")
+      .replace(/:$/, "")
+      .trim();
+
+    if (headings.includes(heading)) {
+      sections.push({ title: heading, items: [] });
+      continue;
+    }
+
+    if (!sections.length) {
+      sections.push({ title: "Overview", items: [] });
+    }
+
+    const cleaned = line
+      .replace(/\[[0-9a-f]{8}-[0-9a-f-]{27,}\]/gi, "")
+      .replace(/^\s*[-*]\s+/, "")
+      .replace(/\*\*/g, "")
+      .trim();
+
+    if (cleaned) {
+      sections[sections.length - 1].items.push(cleaned);
+    }
+  }
+
+  return sections;
+});
+
 async function post(path: string, entry = props.entry) {
   const res = await fetch(`/api${path}`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: props.room, participant: props.participant, entry }) });
   const data = await res.json();
@@ -58,7 +102,30 @@ onBeforeUnmount(() => { token++; generation++; if (poll) clearInterval(poll); })
     <p v-if="error" role="alert">{{ error }}</p>
     <template v-if="summary">
       <small>Generated {{ new Date(summary.generatedAt).toLocaleString() }}</small>
-      <p class="summary-text">{{ summary.text }}</p>
+      
+<div class="summary-content">
+  <section
+    v-for="section in summarySections"
+    :key="section.title"
+    class="summary-section"
+  >
+    <h4>{{ section.title }}</h4>
+
+    <p
+      v-if="section.title === 'Overview'"
+      class="summary-overview"
+    >
+      {{ section.items.join(" ") }}
+    </p>
+
+    <ul v-else>
+      <li v-for="(item, index) in section.items" :key="index">
+        {{ item }}
+      </li>
+    </ul>
+  </section>
+</div>
+
       <small>Answers are unverified. Open the original discussion to check them.</small>
       <ul class="references">
         <li v-for="thread in summary.referencedThreads" :key="thread">
@@ -72,6 +139,54 @@ onBeforeUnmount(() => { token++; generation++; if (poll) clearInterval(poll); })
   </div>
 </template>
 <style scoped>
+
+.summary-content {
+  display: grid;
+  gap: 1rem;
+  margin: 0.5rem 0;
+}
+
+.summary-section {
+  padding: 1rem;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+}
+
+.summary-section h4 {
+  margin: 0 0 0.65rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.summary-section p,
+.summary-section li {
+  font-size: 0.88rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.summary-section ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.summary-overview {
+  margin: 0;
+}
+
+.summary-section li::marker {
+  color: var(--outline);
+}
+
+.references {
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+}
+
 .summary-panel { display:grid; gap:.65rem; padding:.65rem; }
 .overview-heading { margin:0; font:700 clamp(1.45rem,2.5vw,2.1rem)/1.1 Arial,sans-serif; letter-spacing:-.06em; }
 .summary-text { white-space:pre-wrap; overflow-wrap:anywhere; font-size:.9rem; line-height:1.5; }

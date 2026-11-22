@@ -13,6 +13,12 @@ This repo contains the 6.1040 final team project of Julia Kozak, Hunter Liao, an
   - [Live watch and later review screen study](./docs/imgs/f3-screen-study.svg)
   - [Design Summary](./docs/f3.md#design-summary)
   - [Development Plan](./docs/f3.md#development-plan)
+- [F4: Alpha Checkpoint](./docs/f4.md)
+  - [Source Code](./docs/f4.md#source-code)
+  - [Updated Designs](./docs/f4.md#updated-designs)
+  - [Updated Development Plan](./docs/f4.md#updated-development-plan)
+  - [Deployed App](https://watchparty.mit-sdg.dev/)
+  - [Screen Recording](./docs/f4.md#screen-recording)
 
 
 

@@ -126,7 +126,11 @@ test("only the author can edit or delete, and changes clear the old overview", a
   const { hostCookie, guestCookie, host, guest, first } = await setup();
   const opened = await ok("/discussion/start-thread", { ...host, entry: first, anchor: 90, text: "Original question", mode: "HISTORICAL" }, hostCookie);
   const reply = await ok("/discussion/reply", { ...guest, parent: opened.message, text: "Answer", mode: "HISTORICAL" }, guestCookie);
-  await ok("/summary/request", { ...host, entry: first }, hostCookie);
+  const saved = await ok("/summary/request", { ...host, entry: first }, hostCookie);
+  await ok("/discussion/edit-message", { ...host, message: opened.message, text: " Original question " }, hostCookie);
+  expect((await ok("/summary/read", { ...host, entry: first }, hostCookie)).summary).toEqual(saved.summary);
+  const unchanged = await ok("/discussion/thread", { ...host, thread: opened.thread }, hostCookie);
+  expect(unchanged.messages[0].editedAt).toBeUndefined();
   expect((await post("/discussion/edit-message", { ...guest, message: opened.message, text: "Taken over" }, guestCookie)).status).toBe(403);
   expect((await post("/discussion/delete-message", { ...host, message: reply.message }, hostCookie)).status).toBe(403);
   expect((await post("/discussion/edit-message", { ...host, message: opened.message, text: "  " }, hostCookie)).status).toBe(400);

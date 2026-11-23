@@ -54,9 +54,9 @@ a set of Messages with
 Rule: Each thread has exactly one message without a parent. It is the opening message.
 Rule: A reply's parent is an earlier message in the same thread.
 Rule: The topic and anchor of a thread do not change when a reply is added.
-Rule: Text is trimmed, nonempty, and at most 2000 UTF-16 code units unless the message is deleted. A deleted message has empty text. The saved name is nonempty.
-Rule: Messages keep their original author and saved name if a participant later claims a guest visit.
-Rule: Editing or deleting a message does not change its identity, parent, author, context, or posting time.
+Rule: Text is trimmed, nonempty, and at most 2000 UTF-16 code units unless the message is deleted. A deleted message has empty text. An undeleted message has a nonempty saved name.
+Rule: Undeleted messages keep their original author and saved name if a participant later claims a guest visit.
+Rule: Editing preserves message identity, parent, author, context, and posting time. Deleted placeholders have empty author, name, and text, and exist only while needed to connect replies.
 ```
 
 ## Actions
@@ -84,7 +84,7 @@ reply(parent: Message, author: Author, name: String, text: String, context: Cont
     create a message in the parent's thread with that parent, author, name, trimmed text, context, and current server time
     returns message
 
-editMessage(message: Message, author: Author, text: String) : returns (message: Message, topic: Topic)
+editMessage(message: Message, author: Author, text: String) : returns (message: Message, topic: Topic, changed: Flag)
   where the message is missing, deleted, or belongs to another author
   then
     refuses THREAD_UNAVAILABLE "This comment is no longer available."
@@ -93,8 +93,10 @@ editMessage(message: Message, author: Author, text: String) : returns (message: 
     refuses INVALID_MESSAGE "Write a comment of 1 to 2000 characters."
   where the message is present, belongs to the author, and text is valid
   then
-    replace its text with the trimmed text and set editedAt to current server time;
-    returns message, topic
+    set changed to whether the trimmed text differs from the saved text;
+    if changed, replace its text and set editedAt to current server time;
+    otherwise preserve the text and edit time;
+    returns message, topic, changed
 
 deleteMessage(message: Message, author: Author) : returns (message: Message, topic: Topic)
   where the message is missing, deleted, or belongs to another author
@@ -102,8 +104,10 @@ deleteMessage(message: Message, author: Author) : returns (message: Message, top
     refuses THREAD_UNAVAILABLE "This comment is no longer available."
   where the message is present and belongs to the author
   then
-    clear its text and set deletedAt to current server time;
-    keep the message so replies retain their parent;
+    clear its text, author, and name and set deletedAt to current server time;
+    remove the message if it has no replies, pruning empty deleted ancestors;
+    remove the thread if no messages remain;
+    retain an anonymous placeholder only when replies still need their parent;
     returns message, topic
 ```
 

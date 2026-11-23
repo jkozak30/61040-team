@@ -40,7 +40,7 @@ Defined in [Discussing](../design/concepts/Discussing.md), line 1.
 - `reply(parent: Message, author: Author, name: String, text: String, context: Context) : returns (message: Message)`
   - Refuses `THREAD_UNAVAILABLE`: This discussion is no longer available.
   - Refuses `INVALID_MESSAGE`: Write a reply of 1 to 2000 characters.
-- `editMessage(message: Message, author: Author, text: String) : returns (message: Message, topic: Topic)`
+- `editMessage(message: Message, author: Author, text: String) : returns (message: Message, topic: Topic, changed: Flag)`
   - Refuses `THREAD_UNAVAILABLE`: This comment is no longer available.
   - Refuses `INVALID_MESSAGE`: Write a comment of 1 to 2000 characters.
 - `deleteMessage(message: Message, author: Author) : returns (message: Message, topic: Topic)`
@@ -806,21 +806,8 @@ Authored path: `Discussion.EditMessage`.
 - Covered by [Discussion](../design/compositions/Discussion.md), line 73.
 
 ```reaction
-when Discussing.editMessage (author: canonical, message, text, topic: entry), asked by Discussion.EditMessage:allowed#2
-then
-  Summarizing.invalidate (topic: entry)
-```
-
-### Discussion.EditMessage:allowed#4
-
-Authored path: `Discussion.EditMessage`.
-- Covered by [Discussion](../design/compositions/Discussion.md), line 64.
-- Covered by [Discussion](../design/compositions/Discussion.md), line 73.
-
-```reaction
-when Summarizing.invalidate (topic: entry), asked by Discussion.EditMessage:allowed#3
+when Discussing.editMessage (author: canonical, message, text, changed, topic: entry), asked by Discussion.EditMessage:allowed#2
 where
-  earlier, Discussing.editMessage (author: canonical, message, text, topic: entry), asked by Discussion.EditMessage:allowed#2
   earlier, RequestBoundary.request (message, participant, path: "/discussion/edit-message", requestId, room, session, text)
 then
   RequestBoundary.respond (message, requestId)
@@ -855,6 +842,17 @@ where
   no Discussing._editableMessage (message)
 then
   RequestBoundary.respond (error: "THREAD_UNAVAILABLE", requestId)
+```
+
+### Discussion.InvalidateEditedOverview
+
+Authored path: `Discussion.InvalidateEditedOverview`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 88.
+
+```reaction
+when Discussing.editMessage (changed: true, topic: entry)
+then
+  Summarizing.invalidate (topic: entry)
 ```
 
 ### Discussion.ListThreads

@@ -1,11 +1,17 @@
 import { type Collection, type Db } from "mongodb";
 import type { DiscussionMessage, Message, Thread } from "./Discussing.ts";
 
-export class SummaryUnavailable extends Error {}
+export class SummaryUnavailable extends Error {
+  constructor(message: string) {
+    super(message);
+    // Public HTTP refusals deliberately hide details; keep safe diagnostics on the server.
+    console.warn(`[Summarizing] ${message}`);
+  }
+}
 export type SummaryItem = { thread: Thread; anchor: number; messages: DiscussionMessage<string>[] };
 export type SummaryResult = { text: string; referencedThreads: Thread[]; generatedAt: Date };
 interface SummaryDocument<Topic extends string> { _id: Topic; version: number; result?: SummaryResult }
-type Generator = (prompt: string) => Promise<string>;
+type Generator = (prompt: string, threads: string[]) => Promise<string>;
 const MAX_ITEMS = 100;
 
 export class SummarizingConcept<Topic extends string = string> {
@@ -62,8 +68,12 @@ Discussion data:
 ${discussion}`;
 
     let text: string;
-    try { text = (await this.generate(prompt)).trim(); }
-    catch { throw new SummaryUnavailable("Could not generate a summary. Please retry."); }
+    try { text = (await this.generate(prompt, payload.map(({ thread }) => String(thread)))).trim(); }
+    catch (error) {
+      // Only our controlled service errors are safe to log (never prompts, keys, or comments).
+      const detail = error instanceof GeminiFailure ? error.message : "Summary generator failed";
+      throw new SummaryUnavailable(`${detail}. Please retry.`);
+    }
     if (!text || text.length > 16000) throw new SummaryUnavailable("The summary service returned an invalid result.");
     const allowed = new Set(payload.map(({ thread }) => thread));
     const references = [...new Set([...text.matchAll(/\[([^\[\]\s]+)\]/g)].map((match) => match[1] as Thread))];
@@ -89,16 +99,49 @@ ${discussion}`;
   }
 }
 
-async function geminiGenerate(prompt: string): Promise<string> {
+class GeminiFailure extends Error {}
+
+async function geminiGenerate(prompt: string, threads: string[]): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("Missing GEMINI_API_KEY");
-  const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 1200 } }),
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok) throw new Error(`Gemini HTTP ${response.status}`);
-  const data = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-  return data.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
+  if (!key) throw new GeminiFailure("Missing GEMINI_API_KEY");
+  let response: Response;
+  try {
+    response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt + "\nReturn JSON with text (the Markdown recap) and referencedThreads (the IDs actually discussed)." }] }],
+        generationConfig: {
+          temperature: 0.2, maxOutputTokens: 4096,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT", required: ["text", "referencedThreads"],
+            properties: {
+              text: { type: "STRING" },
+              referencedThreads: { type: "ARRAY", minItems: 1, items: { type: "STRING", enum: threads } },
+            },
+          },
+        },
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+  } catch { throw new GeminiFailure("Gemini request timed out or could not connect"); }
+  if (!response.ok) throw new GeminiFailure(`Gemini HTTP ${response.status}`);
+  const data = await response.json() as {
+    candidates?: { finishReason?: string; content?: { parts?: { text?: string; thought?: boolean }[] } }[];
+  };
+  const candidate = data.candidates?.[0];
+  if (!candidate || (candidate.finishReason && candidate.finishReason !== "STOP")) {
+    throw new GeminiFailure("Gemini returned a blocked or incomplete response");
+  }
+  let result: { text?: unknown; referencedThreads?: unknown };
+  try {
+    result = JSON.parse(candidate.content?.parts?.filter(part => !part.thought).map(part => part.text ?? "").join("") ?? "");
+  } catch { throw new GeminiFailure("Gemini returned invalid summary JSON"); }
+  if (typeof result.text !== "string" || !result.text.trim() || !Array.isArray(result.referencedThreads) ||
+      !result.referencedThreads.length || result.referencedThreads.some(id => typeof id !== "string" || !threads.includes(id))) {
+    throw new GeminiFailure("Gemini returned invalid discussion references");
+  }
+  // Keep the existing Markdown/reference contract, even if inline citations were omitted.
+  return result.text + "\n\n" + result.referencedThreads.map(id => `[${id}]`).join(" ");
 }

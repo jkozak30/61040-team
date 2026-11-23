@@ -70,3 +70,34 @@ test("a version captured before a deletion rejects stale discussion items", asyn
   expect(generated).toBe(false);
   expect(await summaries._summary({ topic: "entry" })).toEqual([]);
 });
+
+test("Gemini structured output preserves references even without inline citations", async () => {
+  const previousFetch = globalThis.fetch;
+  const previousKey = process.env.GEMINI_API_KEY;
+  process.env.GEMINI_API_KEY = "test-only";
+  let requestBody: any;
+  globalThis.fetch = (async (_url: unknown, options: RequestInit) => {
+    requestBody = JSON.parse(String(options.body));
+    return Response.json({ candidates: [{ finishReason: "STOP", content: { parts: [
+      { thought: true, text: "Internal thought, excluded" },
+      { text: JSON.stringify({ text: "## Overview\nStudents asked why.", referencedThreads: ["thread-1"] }) },
+    ] } }] });
+  }) as typeof fetch;
+  try {
+    const summaries = new SummarizingConcept(db.db);
+    const result = await summaries.request({ topic: "structured", items, expectedVersion: 0 });
+    expect(result.summary.referencedThreads.map(String)).toEqual(["thread-1"]);
+    expect(result.summary.text).not.toContain("Internal thought");
+    expect(requestBody.generationConfig.responseMimeType).toBe("application/json");
+    expect(requestBody.generationConfig.responseSchema.properties.referencedThreads.items.enum).toEqual(["thread-1"]);
+    globalThis.fetch = (async () => Response.json({ candidates: [{ finishReason: "MAX_TOKENS" }] })) as unknown as typeof fetch;
+    await expect(summaries.request({ topic: "structured", items, expectedVersion: 0 })).rejects.toBeInstanceOf(SummaryUnavailable);
+    expect((await summaries._summary({ topic: "structured" }))[0]?.summary).toEqual(result.summary);
+    globalThis.fetch = (async () => new Response(null, { status: 403 })) as unknown as typeof fetch;
+    await expect(summaries.request({ topic: "structured", items, expectedVersion: 0 })).rejects.toThrow("Gemini HTTP 403");
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = previousKey;
+  }
+});

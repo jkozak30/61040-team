@@ -84,3 +84,7 @@ liveVideo(snapshot: Watching.WatchSnapshot, entry: Watching.VideoEntry) : (live:
 isHistorical(mode: String) : (historical: Flag)
   Answers whether the request is from independent playback rather than live playback.
 ```
+
+The [edit invalidation reaction](reaction:Discussion.InvalidateEditedOverview) invalidates the saved overview only when the accepted edit changes text. Saving identical trimmed text preserves the edit time and saved overview. Canceling an edit sends no request.
+
+Deleting a reply-free message removes it. A deleted message with surviving replies is retained as an anonymous placeholder, and an empty deleted branch is pruned when its last reply is removed.

@@ -53,6 +53,20 @@ Testing progress:
 
 ## (post-meeting) Plans and Decisions
 
-TODO
+- **Watching improvements:** joining live should be a big/visible functionality
+- **Discussing improvements:** Make styling consistent, "branching" for threads, scrolling/highlighting relevant posts, make "jump to" match the current viewing mode
+- **Potential user test:** see if putting a discussion preview + message creation in the sidebar is better
+- **Summarizing improvements:** perhaps add two summary functionalities: one for discussion (just based on discussion content), another for answering unanswered questions (use video context) 
+
+<!-- TODO
 
 plans for next week and decisions made
+
+- discussing: delete full thread if no replies
+- AI: testing with video content
+  - having a window around unanswered questions, give gemini video link
+- making live vs. local clearer
+- user test discussion placement / having discussion on the side + preview
+- make "jump to" match current viewing mode
+- dropdown for threads -->
+

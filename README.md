@@ -18,7 +18,7 @@ This repo contains the 6.1040 final team project of Julia Kozak, Hunter Liao, an
   - [Updated Designs](./docs/f4.md#updated-designs)
   - [Updated Development Plan](./docs/f4.md#updated-development-plan)
   - [Deployed App](https://watchparty.mit-sdg.dev/)
-  - [Screen Recording](./docs/f4.md#screen-recording)
+  - [Screen Recording](https://youtu.be/MEwEB7-zmpI)
 
 
 

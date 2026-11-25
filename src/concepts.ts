@@ -125,6 +125,8 @@ const summarizing = registerConcept({
 export const applicationConceptSet = conceptSet(
   { Authenticating: authenticating, Sessioning: sessioning, Presence: presence, RoomJoining: roomJoining, Watching: watching, Discussing: discussing, Summarizing: summarizing },
   {
+    summaryVideoSource: ({ entries, entry }: { entries: { entry: VideoEntry; source: MediaSource }[]; entry: VideoEntry }) =>
+      ({ source: entries.find(video => video.entry === entry)!.source }),
     listedVideo: ({ entries, entry }: { entries: { entry: VideoEntry }[]; entry: VideoEntry }) =>
       ({ listed: entries.some(video => video.entry === entry) }),
     liveVideo: ({ snapshot, entry }: { snapshot: Snapshot; entry: VideoEntry }) =>

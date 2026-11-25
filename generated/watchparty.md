@@ -37,7 +37,7 @@ Defined in [Discussing](../design/concepts/Discussing.md), line 1.
 
 - `startThread(topic: Topic, author: Author, name: String, anchor: Anchor, text: String, context: Context) : returns (thread: Thread, message: Message)`
   - Refuses `INVALID_MESSAGE`: Write a comment of 1 to 2000 characters.
-- `reply(parent: Message, author: Author, name: String, text: String, context: Context) : returns (message: Message)`
+- `reply(parent: Message, author: Author, name: String, text: String, context: Context) : returns (message: Message, topic: Topic)`
   - Refuses `THREAD_UNAVAILABLE`: This discussion is no longer available.
   - Refuses `INVALID_MESSAGE`: Write a reply of 1 to 2000 characters.
 - `editMessage(message: Message, author: Author, text: String) : returns (message: Message, topic: Topic, changed: Flag)`
@@ -149,14 +149,16 @@ Defined in [Summarizing](../design/concepts/Summarizing.md), line 1.
 
 #### Actions
 
-- `request(topic: Topic, items: SummaryItems, expectedVersion: Number) : returns (summary: SummaryResult)`
-  - Refuses `SUMMARY_UNAVAILABLE`: Could not generate the overview. Try again after discussion.
+- `request(topic: Topic, items: SummaryItems, expectedVersion: Number) : returns (summary: SummaryView)`
+  - Refuses `SUMMARY_UNAVAILABLE`: Could not generate a current discussion overview.
+- `enhance(topic: Topic, items: SummaryItems, source: VideoSource, expectedBaseline: String) : returns (summary: SummaryView)`
+  - Refuses `SUMMARY_UNAVAILABLE`: Could not enhance this overview.
 - `invalidate(topic: Topic) : returns ()`
 
 #### Queries
 
 - `_version(topic: Topic) : optional (version: Number)`
-- `_summary(topic: Topic) : optional (summary: SummaryResult)`
+- `_summary(topic: Topic, items: SummaryItems) : optional (summary: SummaryView)`
 
 #### Instances
 
@@ -218,6 +220,7 @@ Concrete types:
 - `liveVideo(snapshot: Watching.WatchSnapshot, entry: Watching.VideoEntry) : (live: Flag)` — [Discussion](../design/compositions/Discussion.md), line 81.
 - `playbackCommand(entry: Watching.VideoEntry, expectedRevision: Number, operation: String, position?: Number, offset?: Number) : Watching.PlaybackCommand` — [Watch](../design/compositions/Watch.md), line 100.
 - `roomSubject(subject: SessionSubject) : RoomIdentity` — [Rooms](../design/compositions/Rooms.md), line 78.
+- `summaryVideoSource(entries: Watching.VideoList, entry: Watching.VideoEntry) : (source: MediaSource)` — [Summary](../design/compositions/Summary.md), line 38.
 - `watchIdentity(subject: SessionSubject) : SessionSubject` — [Rooms](../design/compositions/Rooms.md), line 72.
 - `watchLive(snapshot: Watching.WatchSnapshot) : (live: Flag)` — [Watch](../design/compositions/Watch.md), line 94.
 - `watchRevision(snapshot: Watching.WatchSnapshot) : Number` — [Watch](../design/compositions/Watch.md), line 97.
@@ -1026,8 +1029,21 @@ Authored path: `Discussion.Reply`.
 - Covered by [Discussion](../design/compositions/Discussion.md), line 35.
 
 ```reaction
-when Discussing.reply (author: canonical, context: mode, name, parent, text, message), asked by Discussion.Reply:historical#2
+when Discussing.reply (author: canonical, context: mode, name, parent, text, message, topic: entry), asked by Discussion.Reply:historical#2
+then
+  Summarizing.invalidate (topic: entry)
+```
+
+### Discussion.Reply:historical#4
+
+Authored path: `Discussion.Reply`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 18.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 35.
+
+```reaction
+when Summarizing.invalidate (topic: entry), asked by Discussion.Reply:historical#3
 where
+  earlier, Discussing.reply (author: canonical, context: mode, name, parent, text, message, topic: entry), asked by Discussion.Reply:historical#2
   earlier, RequestBoundary.request (connection, mode, parent, participant, path: "/discussion/reply", requestId, room, session, text)
 then
   RequestBoundary.respond (message, requestId)
@@ -1058,8 +1074,21 @@ Authored path: `Discussion.Reply`.
 - Covered by [Discussion](../design/compositions/Discussion.md), line 35.
 
 ```reaction
-when Discussing.reply (author: canonical, context: mode, name, parent, text, message), asked by Discussion.Reply:live#2
+when Discussing.reply (author: canonical, context: mode, name, parent, text, message, topic: entry), asked by Discussion.Reply:live#2
+then
+  Summarizing.invalidate (topic: entry)
+```
+
+### Discussion.Reply:live#4
+
+Authored path: `Discussion.Reply`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 18.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 35.
+
+```reaction
+when Summarizing.invalidate (topic: entry), asked by Discussion.Reply:live#3
 where
+  earlier, Discussing.reply (author: canonical, context: mode, name, parent, text, message, topic: entry), asked by Discussion.Reply:live#2
   earlier, RequestBoundary.request (connection, mode, parent, participant, path: "/discussion/reply", requestId, room, session, text)
 then
   RequestBoundary.respond (message, requestId)
@@ -1166,7 +1195,20 @@ Authored path: `Discussion.StartThread`.
 
 ```reaction
 when Discussing.startThread (anchor, author: canonical, context: mode, name, text, topic: entry, message, thread), asked by Discussion.StartThread:historical#2
+then
+  Summarizing.invalidate (topic: entry)
+```
+
+### Discussion.StartThread:historical#4
+
+Authored path: `Discussion.StartThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 10.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 34.
+
+```reaction
+when Summarizing.invalidate (topic: entry), asked by Discussion.StartThread:historical#3
 where
+  earlier, Discussing.startThread (anchor, author: canonical, context: mode, name, text, topic: entry, message, thread), asked by Discussion.StartThread:historical#2
   earlier, RequestBoundary.request (anchor, connection, entry, mode, participant, path: "/discussion/start-thread", requestId, room, session, text)
 then
   RequestBoundary.respond (message, requestId, thread)
@@ -1197,7 +1239,20 @@ Authored path: `Discussion.StartThread`.
 
 ```reaction
 when Discussing.startThread (anchor, author: canonical, context: mode, name, text, topic: entry, message, thread), asked by Discussion.StartThread:live#2
+then
+  Summarizing.invalidate (topic: entry)
+```
+
+### Discussion.StartThread:live#4
+
+Authored path: `Discussion.StartThread`.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 10.
+- Covered by [Discussion](../design/compositions/Discussion.md), line 34.
+
+```reaction
+when Summarizing.invalidate (topic: entry), asked by Discussion.StartThread:live#3
 where
+  earlier, Discussing.startThread (anchor, author: canonical, context: mode, name, text, topic: entry, message, thread), asked by Discussion.StartThread:live#2
   earlier, RequestBoundary.request (anchor, connection, entry, mode, participant, path: "/discussion/start-thread", requestId, room, session, text)
 then
   RequestBoundary.respond (message, requestId, thread)
@@ -1790,11 +1845,70 @@ then
   RequestBoundary.respond (error: "FORBIDDEN", requestId)
 ```
 
+### Summary.Enhance
+
+Authored path: `Summary.Enhance`.
+- Covered by [Summary](../design/compositions/Summary.md), line 15.
+- Covered by [Summary](../design/compositions/Summary.md), line 34.
+
+```reaction
+when RequestBoundary.request (entry, expectedBaseline, participant, path: "/summary/enhance", requestId, room, session)
+then
+  Sessioning.current (session)
+```
+
+### Summary.Enhance:allowed#2
+
+Authored path: `Summary.Enhance`.
+- Covered by [Summary](../design/compositions/Summary.md), line 15.
+- Covered by [Summary](../design/compositions/Summary.md), line 34.
+
+```reaction
+when Sessioning.current (session, subject), asked by Summary.Enhance
+where
+  earlier, RequestBoundary.request (entry, expectedBaseline, participant, path: "/summary/enhance", requestId, room, session)
+  view "verified room membership and saved video entry" with (entry, participant, room, subject)
+  Watching._stream (scope: room) has (entries)
+  (source) is summaryVideoSource (entries, entry)
+  Discussing._topicDiscussion (topic: entry) has (items)
+then
+  Summarizing.enhance (expectedBaseline, items, source, topic: entry)
+```
+
+### Summary.Enhance:allowed#3
+
+Authored path: `Summary.Enhance`.
+- Covered by [Summary](../design/compositions/Summary.md), line 15.
+- Covered by [Summary](../design/compositions/Summary.md), line 34.
+
+```reaction
+when Summarizing.enhance (expectedBaseline, items, source, topic: entry, summary), asked by Summary.Enhance:allowed#2
+where
+  earlier, RequestBoundary.request (entry, expectedBaseline, participant, path: "/summary/enhance", requestId, room, session)
+then
+  RequestBoundary.respond (requestId, summary)
+```
+
+### Summary.Enhance:denied#2
+
+Authored path: `Summary.Enhance`.
+- Covered by [Summary](../design/compositions/Summary.md), line 15.
+- Covered by [Summary](../design/compositions/Summary.md), line 34.
+
+```reaction
+when Sessioning.current (session, subject), asked by Summary.Enhance
+where
+  earlier, RequestBoundary.request (entry, expectedBaseline, participant, path: "/summary/enhance", requestId, room, session)
+  no view "verified room membership and saved video entry" with (entry, participant, room, subject)
+then
+  RequestBoundary.respond (error: "FORBIDDEN", requestId)
+```
+
 ### Summary.Read
 
 Authored path: `Summary.Read`.
 - Covered by [Summary](../design/compositions/Summary.md), line 3.
-- Covered by [Summary](../design/compositions/Summary.md), line 20.
+- Covered by [Summary](../design/compositions/Summary.md), line 32.
 
 ```reaction
 when RequestBoundary.request (entry, participant, path: "/summary/read", requestId, room, session)
@@ -1806,7 +1920,7 @@ then
 
 Authored path: `Summary.Read`.
 - Covered by [Summary](../design/compositions/Summary.md), line 3.
-- Covered by [Summary](../design/compositions/Summary.md), line 20.
+- Covered by [Summary](../design/compositions/Summary.md), line 32.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Read
@@ -1821,14 +1935,15 @@ then
 
 Authored path: `Summary.Read`.
 - Covered by [Summary](../design/compositions/Summary.md), line 3.
-- Covered by [Summary](../design/compositions/Summary.md), line 20.
+- Covered by [Summary](../design/compositions/Summary.md), line 32.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Read
 where
   earlier, RequestBoundary.request (entry, participant, path: "/summary/read", requestId, room, session)
   view "verified room membership and saved video entry" with (entry, participant, room, subject)
-  no Summarizing._summary (topic: entry)
+  Discussing._topicDiscussion (topic: entry) has (items)
+  no Summarizing._summary (items, topic: entry)
 then
   RequestBoundary.respond (requestId, summary: null)
 ```
@@ -1837,14 +1952,15 @@ then
 
 Authored path: `Summary.Read`.
 - Covered by [Summary](../design/compositions/Summary.md), line 3.
-- Covered by [Summary](../design/compositions/Summary.md), line 20.
+- Covered by [Summary](../design/compositions/Summary.md), line 32.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Read
 where
   earlier, RequestBoundary.request (entry, participant, path: "/summary/read", requestId, room, session)
   view "verified room membership and saved video entry" with (entry, participant, room, subject)
-  Summarizing._summary (topic: entry) has (summary)
+  Discussing._topicDiscussion (topic: entry) has (items)
+  Summarizing._summary (items, topic: entry) has (summary)
 then
   RequestBoundary.respond (requestId, summary)
 ```
@@ -1852,8 +1968,8 @@ then
 ### Summary.Request
 
 Authored path: `Summary.Request`.
-- Covered by [Summary](../design/compositions/Summary.md), line 8.
-- Covered by [Summary](../design/compositions/Summary.md), line 21.
+- Covered by [Summary](../design/compositions/Summary.md), line 10.
+- Covered by [Summary](../design/compositions/Summary.md), line 33.
 
 ```reaction
 when RequestBoundary.request (entry, participant, path: "/summary/request", requestId, room, session)
@@ -1864,8 +1980,8 @@ then
 ### Summary.Request:allowed#2
 
 Authored path: `Summary.Request`.
-- Covered by [Summary](../design/compositions/Summary.md), line 8.
-- Covered by [Summary](../design/compositions/Summary.md), line 21.
+- Covered by [Summary](../design/compositions/Summary.md), line 10.
+- Covered by [Summary](../design/compositions/Summary.md), line 33.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Request
@@ -1881,8 +1997,8 @@ then
 ### Summary.Request:allowed#3
 
 Authored path: `Summary.Request`.
-- Covered by [Summary](../design/compositions/Summary.md), line 8.
-- Covered by [Summary](../design/compositions/Summary.md), line 21.
+- Covered by [Summary](../design/compositions/Summary.md), line 10.
+- Covered by [Summary](../design/compositions/Summary.md), line 33.
 
 ```reaction
 when Summarizing.request (expectedVersion: version, items, topic: entry, summary), asked by Summary.Request:allowed#2
@@ -1895,8 +2011,8 @@ then
 ### Summary.Request:denied#2
 
 Authored path: `Summary.Request`.
-- Covered by [Summary](../design/compositions/Summary.md), line 8.
-- Covered by [Summary](../design/compositions/Summary.md), line 21.
+- Covered by [Summary](../design/compositions/Summary.md), line 10.
+- Covered by [Summary](../design/compositions/Summary.md), line 33.
 
 ```reaction
 when Sessioning.current (session, subject), asked by Summary.Request
@@ -2605,6 +2721,7 @@ not listed here have no explicit input contract.
 - `/rooms/reopen` — requires `room`, `session`
 - `/rooms/sign-in-and-claim` — requires `participant`, `password`, `session`, `username`
 - `/rooms/transfer-ownership` — requires `participant`, `room`, `session`, `successor`
+- `/summary/enhance` — requires `entry`, `expectedBaseline`, `participant`, `room`, `session`
 - `/summary/read` — requires `entry`, `participant`, `room`, `session`
 - `/summary/request` — requires `entry`, `participant`, `room`, `session`
 - `/watch/add-video` — requires `session`, `room`, `participant`, `videoId`; fills `previewTitle` with null when absent

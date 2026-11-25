@@ -6,7 +6,7 @@ import type { DiscussionFocus, DiscussionMessage as Message, DiscussionThread } 
 import ScrollCues from "./ScrollCues.vue";
 import DiscussionMessage from "./DiscussionMessage.vue";
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   room: string;
   participant: string;
   entry: string;
@@ -18,8 +18,11 @@ const props = defineProps<{
   revision: number;
   activity: number;
   seekRevision: number;
-}>();
-const emit = defineEmits<{ seek: [number]; changed: [] }>();
+  expanded?: boolean;
+  contentVisible?: boolean;
+}>(), { expanded: true });
+const contentShown = computed(() => props.contentVisible ?? props.expanded);
+const emit = defineEmits<{ seek: [number]; changed: []; toggle: [] }>();
 const threads = ref<DiscussionThread[]>([]);
 const busy = ref(false);
 const error = ref("");
@@ -88,7 +91,11 @@ function resumeFollowing() {
   void nextTick(alignDiscussion);
 }
 watch(() => props.activity, followNow);
-watch(() => props.seekRevision, followNow, { flush: "post" });
+watch(() => props.seekRevision, () => {
+  // A seek originating inside Discussion is still a discussion interaction.
+  // Outside clicks/keys already release the reading lock through the document listener.
+  if (!readingDiscussion) resumeFollowing();
+}, { flush: "post" });
 function trackDiscussionClick(event: Event) {
   readingDiscussion = event.target instanceof Node && !!discussionRoot.value?.contains(event.target);
   if (readingDiscussion) stopFollowing();
@@ -104,12 +111,13 @@ function followPlayerFocus() {
   }, 0);
 }
 
-async function focusThread(thread: string, message?: string) {
+async function focusThread(thread: string, message?: string, holdReading = true) {
   await nextTick();
   const row = [...(threadList.value?.children ?? [])].find((child) =>
     (child as HTMLElement).dataset.thread === thread) as HTMLElement | undefined;
   if (!row) return false;
   openThreads.value.add(thread);
+  if (holdReading) stopFollowing();
   following.value = !readingDiscussion;
   selectedThread.value = thread;
   selectedMessage.value = message;
@@ -195,7 +203,7 @@ watch(() => props.entry, () => {
 });
 watch([() => props.focusRequest, threads], async ([focus]) => {
   if (!focus || focus.id === lastFocus) return;
-  if (await focusThread(focus.thread, focus.message)) lastFocus = focus.id;
+  if (await focusThread(focus.thread, focus.message, focus.holdReading)) lastFocus = focus.id;
 }, { flush: "post" });
 watch(() => props.revision, () => void refresh());
 watch([followThread, following, selectedThread, threadList, () => orderedThreads.value.length], alignDiscussion, { flush: "post" });
@@ -239,23 +247,25 @@ onBeforeUnmount(() => { window.removeEventListener("blur", followPlayerFocus); c
 </script>
 
 <template>
-  <section ref="discussionRoot" aria-label="Discussion" class="discussion"
+  <section ref="discussionRoot" aria-label="Discussion" class="discussion" :class="{ collapsed: !contentShown }"
     @pointerdown.capture="stopFollowing" @pointerup.capture="stopFollowing"
     @pointermove.capture="$event.buttons && stopFollowing()" @click.capture="stopFollowing"
     @keydown.capture="stopFollowing" @input.capture="stopFollowing"
     @wheel.capture.passive="stopFollowing" @touchmove.capture.passive="stopFollowing"
     @scroll.capture="!following && stopFollowing()">
     <header>
-      <h3>Discussion</h3>
-      <button v-if="!following" class="gradient-button follow-button" type="button" @click="followNow">
+      <h3><button class="discussion-toggle" type="button" :aria-expanded="expanded" @click="emit('toggle')">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>Discussion
+      </button></h3>
+      <button v-if="expanded && !following" class="gradient-button follow-button" type="button" @click="followNow">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7"
           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 7 6-7 6m7-12 7 6-7 6M21 6v12" /></svg>
         Follow playback
       </button>
     </header>
-    <p v-if="error" role="alert">{{ error }}</p>
-    <p v-if="!threads.length" role="status">No comments yet.</p>
-    <ScrollCues class="discussion-scroll" :target="threadList" content-selector=":scope > [data-thread]" label="discussion">
+    <p v-if="contentShown && error" role="alert">{{ error }}</p>
+    <p v-if="contentShown && !threads.length" role="status">No comments yet.</p>
+    <ScrollCues v-show="contentShown" :inert="!expanded" class="discussion-scroll" :target="threadList" content-selector=":scope > [data-thread]" label="discussion">
     <div ref="threadList" class="thread-list" tabindex="0" aria-label="Discussion threads" @wheel.passive="stopFollowing" @touchstart.passive="stopFollowing"
       @keydown="['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End'].includes($event.key) && stopFollowing()">
       <div v-for="thread in orderedThreads" :key="thread.thread" :data-thread="thread.thread"
@@ -333,4 +343,11 @@ header h3 { margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   .thread-panel, .thread-summary, .thread-summary::after, .thread-summary::before, .thread-collapse, .thread-preview-copy { transition: none; }
 }
+.discussion.collapsed { padding-bottom: 0; }
+.discussion.collapsed > header { margin-bottom: 0; }
+.watch-page button.discussion-toggle:not(.gradient-button) { display: flex; align-items: center; gap: 0.25rem; padding: 0; border: 0; background: transparent; box-shadow: none; font: inherit; letter-spacing: inherit; color: inherit; }
+.watch-page button.discussion-toggle:not(.gradient-button):hover { color: #50494a; background: transparent; box-shadow: none; }
+.discussion-toggle svg { width: 0.65em; height: 0.65em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; transition: transform 160ms ease; }
+.discussion-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .discussion-toggle svg { transition: none; } }
 </style>

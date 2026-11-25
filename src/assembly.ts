@@ -1,3 +1,4 @@
+import type { VideoEnhancer } from "./video-enhancement.ts";
 import { assemble } from "@mit-sdg/sync-engine/assembly";
 import type { Db } from "mongodb";
 import { applicationConceptSet, Presence, RoomJoining, Sessioning, Watching, Discussing, Summarizing } from "./concepts.ts";
@@ -15,6 +16,7 @@ export function assembleApplication(
   database: Db = openMongoClient("mongodb://127.0.0.1:27017/watchparty").db(),
   lookupVideo = lookupYouTubeVideo,
   generateSummary?: (prompt: string) => Promise<string>,
+  enhanceSummary?: VideoEnhancer,
 ) {
   return assemble({
     conceptSet: applicationConceptSet,
@@ -24,7 +26,7 @@ export function assembleApplication(
       Presence: new Presence(database),
       RoomJoining: new RoomJoining(database),
       Discussing: new Discussing(database),
-      Summarizing: new Summarizing(database, generateSummary),
+      Summarizing: new Summarizing(database, generateSummary, undefined, enhanceSummary),
       Watching: new Watching(database, undefined, async (source) =>
         source.title ? source : youtubeSource(source.id, await lookupVideo(source.id))),
     },

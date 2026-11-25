@@ -16,6 +16,7 @@ const gateway = createGateway({ application });
 const api = createHttpHandler({ application, gateway, policy });
 
 const server = Bun.serve({
+  idleTimeout: 120, // Video analysis can take longer than a text-only recap.
   hostname: process.env.HOST ?? "127.0.0.1",
   port: Number(process.env.PORT ?? 3000),
   routes: {

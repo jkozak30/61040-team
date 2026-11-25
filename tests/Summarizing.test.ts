@@ -246,7 +246,7 @@ test("older verification formats expose Enhance again without discarding discuss
   const summaries = new SummarizingConcept(db.db, async () => "Current recap [thread-1]", undefined, async () => videoResult());
   const baseline = (await summaries.request({ topic: "upgrade", items, expectedVersion: 0 })).summary;
   const enhanced = (await summaries.enhance({ topic: "upgrade", items, source, expectedBaseline: baseline.baselineId! })).summary;
-  expect(enhanced.enhancement?.format).toBe("single-pass-questions-v1");
+  expect(enhanced.enhancement?.format).toBe("bounded-video-fallback-v2");
   await db.db.collection("summarizing.summaries").updateOne({ _id: "upgrade" as any }, { $unset: { "result.enhancement.format": "" } });
   const upgraded = (await summaries._summary({ topic: "upgrade", items }))[0]!.summary;
   expect(upgraded.stale).toBe(false);
@@ -270,3 +270,15 @@ test("an older recap prompt enables regeneration while preserving cached video c
   expect(regenerated.stale).toBe(false);
   expect(regenerated.format).toBe("topic-bullets-v1");
 });
+
+ test("text-only fallback saves answers without inventing a video overview", async () => {
+  const summaries = new SummarizingConcept(db.db, async () => "Question [thread-1]", () => new Date(), async () => ({
+    suggestedAnswers: [{ thread: "thread-1", text: "A conceptual explanation.", timestamps: [] }], generatedAt: new Date(),
+  }));
+  const baseline = (await summaries.request({ topic: "fallback", items, expectedVersion: 0 })).summary;
+  const enhanced = (await summaries.enhance({ topic: "fallback", items, source: { provider: "youtube", id: "M7lc1UVf-VE" }, expectedBaseline: baseline.baselineId! })).summary;
+  expect(enhanced.text).toBe(baseline.text);
+  expect(enhanced.videoOverview).toBeUndefined();
+  expect(enhanced.enhancement?.suggestedAnswers[0]?.timestamps).toEqual([]);
+  expect((await summaries._summary({ topic: "fallback", items }))[0]?.summary.enhancement?.suggestedAnswers).toHaveLength(1);
+ });

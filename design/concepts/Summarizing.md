@@ -2,11 +2,11 @@
 
 ## Purpose
 
-Help students revisit a video discussion and optionally understand it using video evidence, without replacing original messages.
+Help students revisit a video discussion and optionally understand it using video evidence and established subject knowledge, without replacing original messages.
 
 ## Principle
 
-Bob generates a recap of the group's discussion, then enhances it with a separately styled video overview and suggested answers linked to threads and video timestamps. A new comment makes discussion-derived content stale. Bob regenerates it; the video overview can be reused. Failed generation never replaces a valid result.
+Bob generates a recap of the group's discussion, then enhances it with a separately styled video overview and suggested answers linked to threads, with video timestamps only when supported by video evidence. If video processing fails, a bounded text-only fallback may answer conceptual questions without creating a video overview. A new comment makes discussion-derived content stale. Bob regenerates it; the video overview can be reused. Failed generation never replaces a valid result.
 
 ## Types
 
@@ -65,9 +65,9 @@ enhance(topic: Topic, items: SummaryItems, source: VideoSource, expectedBaseline
   where the baseline is absent or stale, the source is unsupported, evidence or references are invalid, generation fails, or the baseline or version changes
   then
     refuses SUMMARY_UNAVAILABLE "Could not enhance this overview."
-  where the exact current baseline is supplied and video analysis succeeds
+  where the exact current baseline is supplied and video analysis or conceptual-answer fallback succeeds
   then
-    retain the discussion recap unchanged; attach a separate video overview and evidence-based suggested answers with thread identities and video timestamps; reuse an existing overview for the same video; remember that enhancement was enabled
+    retain the discussion recap unchanged; attach an optional video overview and supported suggested answers with thread identities; cite video timestamps only for video-supported answers; reuse an existing overview for the same video; remember that enhancement was enabled
     returns summary
 
 invalidate(topic: Topic) : returns ()

@@ -8,7 +8,7 @@ const expanded = ref(false);
 watch(expanded, value => emit("expanded", value));
 const overviewBody = ref<HTMLElement>();
 type Overview = { videoId: string; text: string; generatedAt: string };
-type Enhancement = { videoOverview: Overview; suggestedAnswers: { thread: string; text: string; timestamps: number[] }[]; generatedAt: string };
+type Enhancement = { videoOverview?: Overview; suggestedAnswers: { thread: string; text: string; timestamps: number[] }[]; generatedAt: string };
 type Summary = { text?: string; referencedThreads?: string[]; generatedAt?: string; baselineId?: string; stale: boolean; staleReason?: "discussion" | "format"; enhanced: boolean; videoOverview?: Overview; enhancement?: Enhancement };
 const summary = ref<Summary | null>(null);
 const videoOverview = computed(() => summary.value?.videoOverview ?? summary.value?.enhancement?.videoOverview);
@@ -97,7 +97,7 @@ async function enhance() {
   try { await enhanceCurrent(at, entry); }
   catch {
     if (active(at, entry)) {
-      error.value = "Could not enhance this video. Your discussion overview is unchanged. Check that the video is public, or try again.";
+      error.value = "Enhancement failed. Your discussion summary has been kept. Please try again.";
       await read();
     }
   } finally { if (active(at, entry)) phase.value = null; }

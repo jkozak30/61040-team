@@ -123,19 +123,19 @@ ${discussion}`;
     const overview = document.videoOverview?.videoId === source.id ? document.videoOverview : undefined;
     let enhancement: VideoEnhancement;
     try { enhancement = await this.video({ source, items, baseline: result.text, overview }); }
-    catch { throw new SummaryUnavailable("Could not read or enhance this video. The discussion overview is unchanged."); }
+    catch { throw new SummaryUnavailable("Enhancement failed. Your discussion summary has been kept. Please try again."); }
     const allowed = new Set(items.map(item => String(item.thread)));
-    if (!enhancement || enhancement.videoOverview.videoId !== source.id || !enhancement.videoOverview.text.trim() ||
-      enhancement.videoOverview.text.length > 6000 || enhancement.suggestedAnswers.length > 8 ||
+    if (!enhancement || (enhancement.videoOverview && (enhancement.videoOverview.videoId !== source.id || !enhancement.videoOverview.text.trim() ||
+      enhancement.videoOverview.text.length > 6000)) || enhancement.suggestedAnswers.length > 8 ||
       enhancement.suggestedAnswers.some(answer => !allowed.has(answer.thread) || !answer.text.trim() || answer.text.length > 4000 ||
-        !answer.timestamps.length || answer.timestamps.length > 5 || answer.timestamps.some(time => !Number.isFinite(time) || time < 0))) {
+        answer.timestamps.length > 5 || answer.timestamps.some(time => !Number.isFinite(time) || time < 0))) {
       throw new SummaryUnavailable("The video service returned invalid evidence or references.");
     }
     // Preserve the cache verbatim; an answer-generation request must not rewrite it.
     enhancement = { ...enhancement, format: VIDEO_ENHANCEMENT_FORMAT, videoOverview: overview ?? enhancement.videoOverview };
     const saved = await this.summaries.findOneAndUpdate({ _id: topic, version: document.version,
       "result.baselineId": expectedBaseline, "result.sourceKey": result.sourceKey }, {
-      $set: { "result.enhancement": enhancement, enhanced: true, videoOverview: enhancement.videoOverview },
+      $set: { "result.enhancement": enhancement, enhanced: true, ...(enhancement.videoOverview ? { videoOverview: enhancement.videoOverview } : {}) },
     }, { returnDocument: "after" });
     if (!saved) throw new SummaryUnavailable("The discussion or overview changed while enhancing. Generate it again.");
     return { summary: summaryView(saved, items)! };

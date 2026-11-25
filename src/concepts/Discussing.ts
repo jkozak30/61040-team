@@ -71,22 +71,37 @@ export class DiscussingConcept<Topic extends string = string, Author extends str
   async editMessage({ message, author, text }: { message: Message; author: Author; text: string }) {
     const clean = validate(text);
     const changed = await this.threads.findOneAndUpdate(
-      { messages: { $elemMatch: { message, author, deletedAt: { $exists: false } } } },
+      { messages: { $elemMatch: { message, author, text: { $ne: clean }, deletedAt: { $exists: false } } } },
       { $set: { "messages.$.text": clean, "messages.$.editedAt": this.clock() } },
       { returnDocument: "after" },
     );
-    if (!changed) throw new ThreadUnavailable("This comment is no longer available.");
-    return { message, topic: changed.topic };
+    if (!changed) {
+      const unchanged = await this.threads.findOne({
+        messages: { $elemMatch: { message, author, text: clean, deletedAt: { $exists: false } } },
+      });
+      if (!unchanged) throw new ThreadUnavailable("This comment is no longer available.");
+      return { message, topic: unchanged.topic, changed: false };
+    }
+    return { message, topic: changed.topic, changed: true };
   }
 
   async deleteMessage({ message, author }: { message: Message; author: Author }) {
-    const changed = await this.threads.findOneAndUpdate(
-      { messages: { $elemMatch: { message, author, deletedAt: { $exists: false } } } },
-      { $set: { "messages.$.text": "", "messages.$.deletedAt": this.clock() } },
-      { returnDocument: "after" },
-    );
-    if (!changed) throw new ThreadUnavailable("This comment is no longer available.");
-    return { message, topic: changed.topic };
+    // Match the original array on write so a concurrent reply or edit is preserved.
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const thread = await this.threads.findOne({
+        messages: { $elemMatch: { message, author, deletedAt: { $exists: false } } },
+      });
+      if (!thread) throw new ThreadUnavailable("This comment is no longer available.");
+      const messages = retainedMessages(thread.messages.map((item) =>
+        item.message === message ? { ...item, text: "", deletedAt: this.clock() } : item));
+      const match = { _id: thread._id, messages: thread.messages };
+      const result = messages.length
+        ? await this.threads.updateOne(match, { $set: { messages } })
+        : await this.threads.deleteOne(match);
+      const written = "matchedCount" in result ? result.matchedCount : result.deletedCount;
+      if (written === 1) return { message, topic: thread.topic };
+    }
+    throw new Error("Discussion changed repeatedly. Retry the deletion.");
   }
 
   async _message({ message }: { message: Message }) {
@@ -103,7 +118,9 @@ export class DiscussingConcept<Topic extends string = string, Author extends str
 
   async _thread({ thread }: { thread: Thread }) {
     const doc = await this.threads.findOne({ _id: thread });
-    return doc ? [{ topic: doc.topic, anchor: doc.anchor, messages: ordered(doc.messages) }] : [];
+    if (!doc) return [];
+    const messages = retainedMessages(doc.messages);
+    return messages.length ? [{ topic: doc.topic, anchor: doc.anchor, messages: ordered(messages) }] : [];
   }
 
   async _topicDiscussion({ topic }: { topic: Topic }) {
@@ -113,7 +130,8 @@ export class DiscussingConcept<Topic extends string = string, Author extends str
 
   async _topicThreads({ topic }: { topic: Topic }) {
     const docs = await this.threads.find({ topic }).toArray();
-    return docs.sort((a, b) => a.anchor - b.anchor
+    return docs.map((doc) => ({ ...doc, messages: retainedMessages(doc.messages) }))
+      .filter((doc) => doc.messages.length > 0).sort((a, b) => a.anchor - b.anchor
       || +a.messages[0]!.postedAt - +b.messages[0]!.postedAt || a._id.localeCompare(b._id))
       .map((doc) => ({ thread: doc._id, anchor: doc.anchor, messages: ordered(doc.messages) }));
   }
@@ -128,4 +146,18 @@ function validate(text: string, name?: string) {
 }
 function ordered<Author extends string>(messages: DiscussionMessage<Author>[]) {
   return [...messages].sort((a, b) => +a.postedAt - +b.postedAt || a.message.localeCompare(b.message));
+}
+
+function retainedMessages<Author extends string>(messages: DiscussionMessage<Author>[]) {
+  let retained = messages;
+  // Remove empty deleted branches from the leaves upward.
+  while (true) {
+    const parents = new Set(retained.map((item) => item.parent));
+    const next = retained.filter((item) => !item.deletedAt || parents.has(item.message));
+    if (next.length === retained.length) break;
+    retained = next;
+  }
+  return retained.map((item) => item.deletedAt
+    ? { ...item, author: "" as Author, name: "", text: "" }
+    : item);
 }

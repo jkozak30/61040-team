@@ -76,9 +76,56 @@ test("authors can edit or delete their comments without removing replies", async
   expect(messages[0]).toMatchObject({ text: "Revised", editedAt: now, author: "bob", postedAt: now });
   await discussing.deleteMessage({ message: opened.message, author: "bob" });
   messages = (await discussing._thread({ thread: opened.thread }))[0]!.messages;
-  expect(messages[0]).toMatchObject({ text: "", deletedAt: now, author: "bob" });
+  expect(messages[0]).toMatchObject({ text: "", deletedAt: now, author: "", name: "" });
   expect(messages[1]).toMatchObject({ message: reply.message, parent: opened.message, text: "Answer" });
   expect(await discussing._editableMessage({ message: opened.message })).toEqual([]);
   await expect(discussing.editMessage({ message: opened.message, author: "bob", text: "Restore" })).rejects.toBeInstanceOf(ThreadUnavailable);
   await expect(discussing.deleteMessage({ message: opened.message, author: "bob" })).rejects.toBeInstanceOf(ThreadUnavailable);
+});
+
+test("saving unchanged text preserves edit metadata", async () => {
+  const { thread, message } = await discussing.startThread({
+    topic: "video", author: "bob", name: "Bob", anchor: 12, text: "Original", context: "LIVE",
+  });
+  await discussing.editMessage({ message, author: "bob", text: " Original " });
+  expect((await discussing._thread({ thread }))[0]?.messages[0]?.editedAt).toBeUndefined();
+  await discussing.editMessage({ message, author: "bob", text: "Revised" });
+  const firstEdit = (await discussing._thread({ thread }))[0]?.messages[0]?.editedAt;
+  now = new Date(now.getTime() + 1000);
+  await discussing.editMessage({ message, author: "bob", text: "Revised" });
+  expect((await discussing._thread({ thread }))[0]?.messages[0]?.editedAt).toEqual(firstEdit);
+});
+
+
+test("deleting a leaf removes it from storage and removes empty deleted ancestors", async () => {
+  const opened = await discussing.startThread({ topic: "entry", author: "bob", name: "Bob", anchor: 10, text: "Question", context: "LIVE" });
+  const reply = await discussing.reply({ parent: opened.message, author: "alice", name: "Alice", text: "Answer", context: "LIVE" });
+  await discussing.deleteMessage({ message: opened.message, author: "bob" });
+  const stored = await testDb.db.collection("discussing.threads").findOne({ _id: opened.thread as never });
+  expect(stored?.messages[0]).toMatchObject({ name: "", author: "", text: "" });
+  await discussing.deleteMessage({ message: reply.message, author: "alice" });
+  expect(await discussing._topicThreads({ topic: "entry" })).toEqual([]);
+  expect(await testDb.db.collection("discussing.threads").countDocuments()).toBe(0);
+});
+
+test("deleting a standalone opening message removes the thread", async () => {
+  const opened = await discussing.startThread({ topic: "entry", author: "bob", name: "Bob", anchor: 10, text: "Question", context: "LIVE" });
+  await discussing.deleteMessage({ message: opened.message, author: "bob" });
+  expect(await discussing._thread({ thread: opened.thread })).toEqual([]);
+  expect(await discussing._message({ message: opened.message })).toEqual([]);
+  expect(await testDb.db.collection("discussing.threads").countDocuments()).toBe(0);
+});
+
+test("concurrent reply and deletion never leave an orphan reply", async () => {
+  const opened = await discussing.startThread({ topic: "entry", author: "bob", name: "Bob", anchor: 10, text: "Question", context: "LIVE" });
+  const results = await Promise.allSettled([
+    discussing.reply({ parent: opened.message, author: "alice", name: "Alice", text: "Answer", context: "LIVE" }),
+    discussing.deleteMessage({ message: opened.message, author: "bob" }),
+  ]);
+  expect(results[1]?.status).toBe("fulfilled");
+  const threads = await discussing._topicThreads({ topic: "entry" });
+  if (results[0]?.status === "fulfilled") {
+    expect(threads[0]?.messages[0]).toMatchObject({ author: "", name: "", text: "" });
+    expect(threads[0]?.messages[1]?.parent).toBe(opened.message);
+  } else expect(threads).toEqual([]);
 });

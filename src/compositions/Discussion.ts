@@ -1,5 +1,5 @@
 import { endpoint, receive, respond, type EndpointValidator } from "@mit-sdg/sync-engine/boundary";
-import { compute, each, former, no, view, where } from "@mit-sdg/sync-engine/language";
+import { compute, each, former, no, reaction, view, when, where } from "@mit-sdg/sync-engine/language";
 import { computations, concepts } from "../concepts.ts";
 import { RoomAccess } from "./Rooms.ts";
 
@@ -121,13 +121,12 @@ const Reply = endpoint("/discussion/reply",
       ), { ...opts, input: { required: ["session", "room", "participant", "parent", "text", "mode"], defaults: { connection: null } } });
 
 const EditMessage = endpoint("/discussion/edit-message",
-  ({ session, room, participant, message, text, subject, entry, canonical }) =>
+  ({ session, room, participant, message, text, subject, entry, canonical, changed }) =>
     receive({ session, room, participant, message, text })
       .then(Sessioning.current({ session }).responds({ subject }))
       .then(
         where(OwnedMessage({ room, participant, subject, message }).is({ entry, canonical }))
-          .then(Discussing.editMessage({ message, author: canonical, text }).responds({ topic: entry }))
-          .then(Summarizing.invalidate({ topic: entry }).responds({}))
+          .then(Discussing.editMessage({ message, author: canonical, text }).responds({ topic: entry, changed }))
           .then(respond({ message })).named("allowed"),
         where(no(Discussing._editableMessage({ message }).is({})))
           .then(respond({ error: "THREAD_UNAVAILABLE" })).named("missing"),
@@ -135,6 +134,11 @@ const EditMessage = endpoint("/discussion/edit-message",
           no(OwnedMessage({ room, participant, subject, message }).is({})))
           .then(respond({ error: "FORBIDDEN" })).named("denied"),
       ), { ...opts, input: { required: ["session", "room", "participant", "message", "text"] } });
+
+const InvalidateEditedOverview = reaction(({ entry }) =>
+  when(Discussing.editMessage({}).responds({ topic: entry, changed: true }))
+    .then(Summarizing.invalidate({ topic: entry }).responds({})),
+);
 
 const DeleteMessage = endpoint("/discussion/delete-message",
   ({ session, room, participant, message, subject, entry, canonical }) =>
@@ -152,4 +156,4 @@ const DeleteMessage = endpoint("/discussion/delete-message",
           .then(respond({ error: "FORBIDDEN" })).named("denied"),
       ), { ...opts, input: { required: ["session", "room", "participant", "message"] } });
 
-export const composition = { DiscussionAccess, OwnedMessage, TopicThreads, ListThreads, ReadThread, StartThread, Reply, EditMessage, DeleteMessage };
+export const composition = { DiscussionAccess, OwnedMessage, TopicThreads, ListThreads, ReadThread, StartThread, Reply, EditMessage, InvalidateEditedOverview, DeleteMessage };

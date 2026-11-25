@@ -7,6 +7,8 @@ import { createHttpClient } from "@mit-sdg/sync-engine-http/client";
 import { loadYouTube, type YouTubePlayer } from "../youtube-player.ts";
 import AddVideoDialog from "./AddVideoDialog.vue";
 import Discussion from "./Discussion.vue";
+import DiscussionComposer from "./DiscussionComposer.vue";
+import type { DiscussionFocus } from "../discussion-types.ts";
 import DiscussionSummary from "./DiscussionSummary.vue";
 import type { WatchPartyWireHttp } from "../../generated/wire.ts";
 
@@ -106,6 +108,23 @@ let hasPlayed = false;
 let cuedPosition: number | undefined;
 let stopped = false;
 let polling: Promise<void> | undefined;
+let controlPending = false;
+let pendingSeek: { entry: VideoEntry; position: number; startedAt: number; playing: boolean } | undefined;
+
+function pendingSeekPosition() {
+  if (!pendingSeek || pendingSeek.entry !== activeEntry.value) return undefined;
+  const elapsed = pendingSeek.playing ? (Date.now() - pendingSeek.startedAt) / 1000 : 0;
+  return Math.min(duration.value || Infinity, pendingSeek.position + elapsed);
+}
+
+function holdSeek(position: number) {
+  const entry = activeEntry.value;
+  if (!entry) return;
+  pendingSeek = { entry, position, startedAt: Date.now(), playing: playing.value };
+  optimisticPosition.value = position;
+  currentTime.value = position;
+  localPosition.value = position;
+}
 
 const snapshot = computed(() => state.value?.watch.snapshot);
 const shared = ref(props.initialShared);
@@ -123,14 +142,36 @@ const activeEntry = computed(() => localPlayback.value
   : snapshot.value?.activeEntry);
 const videoId = computed(() => entries.value.find((entry) => entry.entry === activeEntry.value)?.source.id);
 const discussionRevision = ref(0);
-const focusRequest = ref<{ thread: string; id: number }>();
+const discussionActivity = ref(0);
+const discussionSeekRevision = ref(0);
+const watchLayout = ref<HTMLElement>();
+const sidebarPercent = ref(27);
+const resizingSidebar = ref(false);
+function resizeSidebar(event: PointerEvent) {
+  if (!resizingSidebar.value || !watchLayout.value) return;
+  const bounds = watchLayout.value.getBoundingClientRect();
+  sidebarPercent.value = Math.max(20, Math.min(45, (bounds.right - event.clientX) / bounds.width * 100));
+}
+function startSidebarResize(event: PointerEvent) {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  resizingSidebar.value = true;
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  resizeSidebar(event);
+}
+function endSidebarResize() { resizingSidebar.value = false; }
+function resizeSidebarByKey(event: KeyboardEvent) {
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    event.preventDefault();
+    sidebarPercent.value = Math.max(20, Math.min(45, sidebarPercent.value + (event.key === "ArrowLeft" ? 1 : -1)));
+  }
+  if (event.key === "Home") sidebarPercent.value = 27;
+}
+const focusRequest = ref<DiscussionFocus>();
 let focusId = 0;
 function applyLocalAction({ anchor, thread }: { anchor?: number; thread?: string }) {
   if (anchor !== undefined && Number.isFinite(anchor) && anchor >= 0) {
-    optimisticPosition.value = undefined;
-    localPosition.value = anchor;
-    currentTime.value = anchor;
-    player?.seekTo(anchor, true);
+    sendControl("SEEK", anchor);
   }
   if (thread) focusRequest.value = { thread, id: ++focusId };
 }
@@ -158,8 +199,16 @@ async function answerLocalWatch(confirmed: boolean) {
   if (!await closeDialog(localWatchDialog.value) || !confirmed || !action) return;
   await run(() => leaveShared(action));
 }
-function jumpToThread(anchor: number) { watchLocally({ anchor }); }
-function openSummaryThread(thread: string, anchor: number) { watchLocally({ anchor, thread }); }
+function jumpToThread(anchor: number) { return sendControl("SEEK", anchor); }
+function openSummaryThread(thread: string, anchor: number) {
+  focusRequest.value = { thread, id: ++focusId };
+  return jumpToThread(anchor);
+}
+function commentPosted(result: { entry: string; thread: string; message: string }) {
+  if (result.entry !== activeEntry.value) return;
+  discussionRevision.value++;
+  focusRequest.value = { thread: result.thread, message: result.message, id: ++focusId };
+}
 const inviteLink = computed(() => {
   if (!props.inviteCode) return "";
   const url = new URL(window.location.pathname, window.location.origin);
@@ -238,6 +287,7 @@ function applyToPlayer(action: () => void) {
 }
 
 function syncPlayer(force = false) {
+  if (controlPending || (!force && pendingSeek?.entry === activeEntry.value)) return;
   const value = snapshot.value;
   if (!player || !playerReady.value || !value || localPlayback.value || playerError.value) return;
   if (!force && appliedRevision === value.revision && Date.now() < ignorePlayerEventsUntil) return;
@@ -297,7 +347,7 @@ function playerStateChanged(status: number) {
     autoplayBlocked.value = false;
   }
   const current = snapshot.value;
-  if (catchUp && current?.playback === "PLAYING" && !localPlayback.value && player) {
+  if (!controlPending && !pendingSeek && catchUp && current?.playback === "PLAYING" && !localPlayback.value && player) {
     const target = player;
     const position = sharedPosition();
     if (Math.abs(target.getCurrentTime() - position) > 1.5) {
@@ -306,7 +356,7 @@ function playerStateChanged(status: number) {
     return;
   }
   if (
-    stopped || !current || localPlayback.value ||
+    stopped || !current || localPlayback.value || controlPending || pendingSeek ||
     starting || Date.now() < ignorePlayerEventsUntil
   ) return;
 
@@ -372,6 +422,7 @@ watch([activeEntry, playerAttempt, playerHost], async () => {
   appliedPlaying = false;
   pendingNativePlay = false;
   seekDraft.value = undefined;
+  pendingSeek = undefined;
   draggingSeek.value = false;
   optimisticPosition.value = undefined;
   clearPlaybackNotice();
@@ -538,6 +589,7 @@ function enter() {
 
 function sendControl(operation: Control, position?: number, fromPlayer = false, offset?: number) {
   if (busy.value) return;
+  if (operation === "SEEK") discussionSeekRevision.value++;
   if (!fromPlayer) clearPlaybackNotice();
   if (localPlayback.value) {
     if (!player || !playerReady.value) return;
@@ -550,14 +602,20 @@ function sendControl(operation: Control, position?: number, fromPlayer = false, 
     if (operation === "SEEK") {
       const target = position ?? player.getCurrentTime() + (offset ?? 0);
       const seconds = Math.max(0, Math.min(duration.value || Infinity, target));
-      player.seekTo(seconds, true);
-      currentTime.value = seconds;
+      holdSeek(seconds);
+      const status = player.getPlayerState();
+      const id = videoId.value;
+      if (!localPlaying.value && (status === -1 || status === 5) && id) {
+        cuedPosition = seconds;
+        applyToPlayer(() => player?.cueVideoById({ videoId: id, startSeconds: seconds }));
+      } else applyToPlayer(() => player?.seekTo(seconds, true));
     }
     return;
   }
   const current = snapshot.value;
   if (!connected.value || !current?.activeEntry) return;
   const entry = current.activeEntry;
+  controlPending = true;
   if (player && playerReady.value && !playerError.value && !fromPlayer) {
     const target = player;
     if (operation === "PLAY") enablePlayback(true);
@@ -568,7 +626,7 @@ function sendControl(operation: Control, position?: number, fromPlayer = false, 
     }
     if (operation === "SEEK") {
       const seconds = Math.max(0, Math.min(duration.value || Infinity, position ?? sharedPosition() + (offset ?? 0)));
-      optimisticPosition.value = seconds;
+      holdSeek(seconds);
       const status = target.getPlayerState();
       const id = videoId.value;
       if (current.playback === "PAUSED" && (status === -1 || status === 5) && id) {
@@ -595,24 +653,43 @@ function sendControl(operation: Control, position?: number, fromPlayer = false, 
         ? "Playback or presence changed. Try again from the current watch."
         : "Could not send that playback command.";
     }
+    if (rejected) pendingSeek = undefined;
     await refresh(true, rejected);
   }).finally(() => {
-    // Commit the server position before releasing the optimistic thumb.
-    if (!localPlayback.value) currentTime.value = sharedPosition();
-    optimisticPosition.value = undefined;
+    controlPending = false;
+    if (error.value) pendingSeek = undefined;
+    if (!pendingSeek) {
+      if (!localPlayback.value) currentTime.value = sharedPosition();
+      optimisticPosition.value = undefined;
+      syncPlayer(true);
+    }
   });
 }
 
 function discussionPosition() {
-  const position = playerReady.value && !playerError.value ? player?.getCurrentTime() : undefined;
+  const position = pendingSeekPosition() ??
+    (playerReady.value && !playerError.value ? player?.getCurrentTime() : undefined);
   return position !== undefined && Number.isFinite(position) && position >= 0 ? position : undefined;
 }
 
 function updateProgress() {
   if (!playerReady.value || !player) return;
   duration.value = player.getDuration() || 0;
+  const requested = pendingSeekPosition();
+  if (pendingSeek && requested !== undefined) {
+    const status = player.getPlayerState();
+    const actual = status === -1 || status === 5 ? cuedPosition ?? player.getCurrentTime() : player.getCurrentTime();
+    if (!controlPending && ((status !== 3 && Math.abs(actual - requested) < 0.75) ||
+      Date.now() - pendingSeek.startedAt > 4000)) {
+      pendingSeek = undefined;
+      optimisticPosition.value = undefined;
+      syncPlayer();
+    } else {
+      optimisticPosition.value = requested;
+    }
+  }
   localPosition.value = discussionPosition();
-  currentTime.value = localPlayback.value ? player.getCurrentTime() : sharedPosition();
+  currentTime.value = pendingSeekPosition() ?? (localPlayback.value ? player.getCurrentTime() : sharedPosition());
   const notice = pendingSeekNotice;
   if (!notice) return;
 
@@ -749,7 +826,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section aria-label="Watch" class="watch-layout">
+  <section ref="watchLayout" aria-label="Watch" class="watch-layout"
+    :class="{ resizing: resizingSidebar }" :style="{ '--sidebar-width': sidebarPercent + '%' }">
     <header class="watch-header">
       <div class="watch-menu" @keydown.esc.stop="menuOpen = false; menuTrigger?.focus()">
         <button ref="menuTrigger" class="watch-brand gradient-button" type="button" :aria-expanded="menuOpen"
@@ -872,24 +950,26 @@ onBeforeUnmount(() => {
 
         <div class="watch-actions">
           <span v-if="watchEnded">Live watch ended</span>
-          <button v-if="live && localPlayback" type="button" @click="run(joinShared)">Join live watch</button>
+          <button v-if="live && localPlayback" class="gradient-button live-watch-button" type="button" @click="run(joinShared)">Join live watch</button>
           <button v-if="live && !localPlayback" type="button" @click="watchLocally()">Watch locally</button>
-          <button v-if="state.isOwner && !live && !watchEnded && activeEntry" class="start-live" type="button" @click="startWatch">
+          <button v-if="state.isOwner && !live && !watchEnded && activeEntry" class="gradient-button live-watch-button" type="button" @click="startWatch">
             Start live watch
           </button>
           <button v-if="live && !localPlayback" type="button" @click="endWatch">End live watch</button>
           <button type="button" @click="emit('leave-room')">Leave room</button>
         </div>
 
-        <Discussion v-if="activeEntry" :room="room" :participant="participant" :entry="activeEntry"
-          :connection="connection" :position="currentTime" :live="!localPlayback && connected"
-          :focus-request="focusRequest"
-          @seek="jumpToThread" @changed="discussionRevision++" />
+
       </template>
       <p v-else-if="busy" role="status">Opening watch...</p>
       <button v-else type="button" @click="enter">Retry watch</button>
     </div>
 
+    <div v-if="state" class="sidebar-divider" role="separator" aria-label="Resize sidebar"
+      aria-orientation="vertical" :aria-valuenow="Math.round(sidebarPercent)" :aria-valuemin="20" :aria-valuemax="45"
+      tabindex="0" @pointerdown="startSidebarResize" @pointermove="resizeSidebar"
+      @pointerup="endSidebarResize" @pointercancel="endSidebarResize" @lostpointercapture="endSidebarResize"
+      @keydown="resizeSidebarByKey" @dblclick="sidebarPercent = 27" />
     <aside v-if="state" class="watch-sidebar" aria-label="Room details">
       <section class="video-panel" aria-labelledby="watched-videos-heading">
         <h3 id="watched-videos-heading">Room videos</h3>
@@ -929,6 +1009,13 @@ onBeforeUnmount(() => {
         <DiscussionSummary :room="room" :participant="participant" :entry="activeEntry!"
           :revision="discussionRevision" @open-thread="openSummaryThread" />
       </section>
+      <Discussion v-if="activeEntry" :room="room" :participant="participant" :entry="activeEntry"
+          :connection="connection" :position="localPosition" :live="!localPlayback"
+          :participant-colors="roomColors" :focus-request="focusRequest" :revision="discussionRevision" :activity="discussionActivity" :seek-revision="discussionSeekRevision"
+          @seek="jumpToThread" @changed="discussionRevision++" />
+      <DiscussionComposer v-if="activeEntry" :room="room" :participant="participant" :entry="activeEntry"
+        :connection="connection" :live="!localPlayback" :position="localPosition"
+        :get-position="discussionPosition" @posted="commentPosted" @activity="discussionActivity++" />
     </aside>
     <dialog ref="endWatchDialog" class="watch-dialog" aria-labelledby="end-watch-heading"
       aria-describedby="end-watch-warning" @cancel.prevent="answerEndWatch(false)">
@@ -956,7 +1043,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.watch-layout { display: grid; grid-template-columns: minmax(0, 1fr) clamp(14rem, 23vw, 20rem); align-items: start; }
+.watch-layout { min-height: 100dvh; grid-template-rows: auto 1fr; display: grid; grid-template-columns: minmax(0, 1fr) 8px minmax(0, var(--sidebar-width, 27%)); align-items: start; }
 .watch-header {
   grid-column: 1 / -1;
   display: flex;
@@ -1009,11 +1096,16 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 .player :deep(iframe) { display: block; width: 100%; height: 100%; border: 0; }
-.watch-sidebar { position: relative; background: var(--surface); border-inline-start: 1px solid var(--line); }
-.watch-sidebar > section { min-width: 0; padding: 1rem; border-bottom: 1px solid var(--line); }
+.sidebar-divider { grid-column: 2; grid-row: 2; align-self: stretch; cursor: col-resize; touch-action: none; background: var(--surface); position: relative; }
+.sidebar-divider::after { content: ""; position: absolute; inset: 0 3px; background: var(--line); transition: background-color 160ms ease; }
+.sidebar-divider:hover::after, .sidebar-divider:focus-visible::after { background: #c3a1b6; }
+.resizing { user-select: none; cursor: col-resize; }
+.resizing .player-frame { pointer-events: none; }
+.watch-sidebar { display: flex; flex-direction: column; height: calc(100dvh - 3.4rem); position: relative; background: var(--surface); border-inline-start: 1px solid var(--line); }
+.watch-sidebar > section { flex-shrink: 0; min-width: 0; padding: 1rem; border-bottom: 1px solid var(--line); }
 .watch-sidebar > .overview-panel { padding: 0; }
 .video-panel { display: flex; flex-direction: column; }
-.watch-main > :deep(.discussion) { margin-inline: 0; min-height: clamp(26rem, 68dvh, 44rem); border-top: 1px solid var(--line); }
+.watch-sidebar > :deep(.discussion) { margin-block-start: 0.6rem; margin-inline: 0; flex: 1 1 auto; height: auto; min-height: 10rem; border-top: 1px solid var(--line); }
 
 .video-list, .participants { list-style: none; padding: 0; }
 .video-list { max-height: 12rem; display: grid; gap: 0.35rem; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
@@ -1079,25 +1171,27 @@ form, select { margin-block: 0.5rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 760px) {
   .watch-layout { grid-template-columns: minmax(0, 1fr); }
-  .watch-sidebar { border-inline-start: 0; border-top: 1px solid var(--line); }
+  .sidebar-divider { display: none; }
+  .watch-sidebar > :deep(.discussion) { flex: none; height: 22rem; }
+  .watch-sidebar { height: auto; border-inline-start: 0; border-top: 1px solid var(--line); }
 }
-.watch-page button.start-live:not(.gradient-button) {
-  background: linear-gradient(110deg, #b0d9e2, #cbb9e5 38%, #e4b8ce 68%, #efc9a4);
-  color: var(--surface);
-  border-color: #171417;
+.watch-page button.live-watch-button.gradient-button {
+  color: #fff;
   font-weight: 800;
-  box-shadow: 0 0 2px #ffffff80, 0 0 6px #ffffff44;
+  border: 1px solid #fff;
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+  box-shadow: 0 0 6px #ffffff55;
 }
-
 @media (hover: hover) {
-  .watch-page button.start-live:not(.gradient-button):not(:disabled):hover {
-    color: var(--surface);
-    border-color: #171417;
-    box-shadow:
-      -2px 0 7px #42c8e480,
-       2px 0 7px #ec6dac85,
-       0 -1px 6px #8472ed65,
-       0 1px 6px #ffa06a65;
+  .watch-page button.live-watch-button.gradient-button:not(:disabled):hover {
+    color: #fff;
+    border-color: #fff;
+    box-shadow: -2px 0 7px #42c8e480, 2px 0 7px #ec6dac85, 0 -1px 6px #8472ed65, 0 1px 6px #ffa06a65;
   }
+}
+.watch-page button.live-watch-button.gradient-button:focus-visible {
+  outline-width: 3px;
+  outline-color: #efc96b;
 }
 </style>

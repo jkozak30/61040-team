@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import ScrollCues from "./ScrollCues.vue";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 const props = defineProps<{ room: string; participant: string; entry: string; revision?: number }>();
 const emit = defineEmits<{ openThread: [thread: string, anchor: number] }>();
+const expanded = ref(false);
+const overviewBody = ref<HTMLElement>();
 const summary = ref<{ text: string; referencedThreads: string[]; generatedAt: string } | null>(null);
 const threads = ref<{ thread: string; anchor: number }[]>([]);
 const busy = ref(false);
@@ -41,7 +44,7 @@ const summarySections = computed(() => {
     }
 
     const cleaned = line
-      .replace(/\[[0-9a-f]{8}-[0-9a-f-]{27,}\]/gi, "")
+      .replace(/\[([^\[\]\s]+)\]/g, (match, id) => summary.value?.referencedThreads.includes(id) ? "" : match)
       .replace(/^\s*[-*]\s+/, "")
       .replace(/\*\*/g, "")
       .trim();
@@ -57,7 +60,12 @@ const summarySections = computed(() => {
 async function post(path: string, entry = props.entry) {
   const res = await fetch(`/api${path}`, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ room: props.room, participant: props.participant, entry }) });
   const data = await res.json();
-  if (!res.ok || data.error) throw new Error(data.message ?? data.error ?? "Summary unavailable");
+  if (!res.ok || data.error) {
+    const message = data.error === "CONFLICT"
+      ? "The overview could not be generated. Please try again."
+      : data.error === "FORBIDDEN" ? "You no longer have access to this discussion." : "Could not reach the overview service. Try again.";
+    throw new Error(message);
+  }
   return data;
 }
 async function read() {
@@ -70,7 +78,7 @@ async function read() {
       error.value = "";
     }
   }
-  catch (e) { if (at === token) error.value = String(e); }
+  catch (e) { if (at === token) error.value = e instanceof Error ? e.message : String(e); }
 }
 async function generate() {
   const entry = props.entry;
@@ -83,7 +91,7 @@ async function generate() {
       summary.value = result.summary ?? null;
     }
   }
-  catch (e) { if (at === generation && entry === props.entry) error.value = String(e); }
+  catch (e) { if (at === generation && entry === props.entry) error.value = e instanceof Error ? e.message : String(e); }
   finally { if (at === generation) busy.value = false; }
 }
 function openThread(thread: string) {
@@ -96,11 +104,19 @@ onMounted(() => { void read(); poll = setInterval(() => { if (!busy.value) void 
 onBeforeUnmount(() => { token++; generation++; if (poll) clearInterval(poll); });
 </script>
 <template>
-  <div class="summary-panel">
-    <h3 class="overview-heading">AI overview</h3>
-    <button type="button" :disabled="busy" @click="generate">{{ busy ? 'Generating…' : summary ? 'Regenerate overview' : 'Generate overview' }}</button>
+  <section class="summary-panel">
+    <button type="button" class="overview-toggle" :aria-expanded="expanded" @click="expanded = !expanded">
+      <svg class="overview-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+        stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m6 3 5 5-5 5" />
+      </svg>
+      AI overview
+    </button>
+    <div class="overview-collapse" :class="{ expanded }" :inert="!expanded">
+      <div class="overview-clip"><ScrollCues class="overview-scroll" :target="overviewBody" tone="warm" label="AI overview"><div ref="overviewBody" class="overview-body" tabindex="0" aria-label="AI overview content">
+    <button class="generate-overview" type="button" :disabled="busy" @click="generate">{{ busy ? 'Generating…' : summary ? 'Regenerate overview' : 'Generate overview' }}</button>
     <p v-if="error" role="alert">{{ error }}</p>
-    <template v-if="summary">
+    <div v-if="summary" class="summary-card">
       <small>Generated {{ new Date(summary.generatedAt).toLocaleString() }}</small>
       
 <div class="summary-content">
@@ -134,63 +150,96 @@ onBeforeUnmount(() => { token++; generation++; if (poll) clearInterval(poll); })
           </button>
         </li>
       </ul>
-    </template>
-    <p v-else>No AI overview yet. Add discussion comments, then generate one.</p>
-  </div>
+    </div>
+    <p v-else class="overview-empty">No AI overview yet. Add discussion comments, then generate one.</p>
+      </div></ScrollCues></div>
+    </div>
+  </section>
 </template>
 <style scoped>
 
-.summary-content {
-  display: grid;
-  gap: 1rem;
-  margin: 0.5rem 0;
+.overview-toggle {
+  cursor: pointer;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0 0.3rem;
+  background: #79675d;
+  color: var(--surface);
+  font: 700 clamp(1.6rem, 2.5vw, 2.25rem)/0.95 Arial, sans-serif;
+  letter-spacing: -0.08em;
 }
 
-.summary-section {
-  padding: 1rem;
-  background: var(--raised);
-  border: 1px solid var(--line);
-  border-radius: 0.65rem;
-}
 
-.summary-section h4 {
-  margin: 0 0 0.65rem;
-  font-size: 0.9rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.summary-section p,
-.summary-section li {
-  font-size: 0.88rem;
-  line-height: 1.65;
+.overview-chevron { flex: none; width: 0.72em; height: 0.72em; transition: transform 160ms ease; }
+.overview-toggle[aria-expanded="true"] .overview-chevron { transform: rotate(90deg); }
+.overview-body {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(115deg, #322d21, #2d241e 62%, #28221d);
+  color: #efbd8c;
   overflow-wrap: anywhere;
 }
+.overview-body p:first-child, .overview-body ul:first-child { margin-top: 0; }
+.overview-body p:last-child, .overview-body ul:last-child { margin-bottom: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .overview-chevron { transition: none; }
+}
 
-.summary-section ul {
-  margin: 0;
-  padding-left: 1.2rem;
+.overview-scroll { max-height: clamp(7rem, 25dvh, 18rem); }
+.overview-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; display: grid; gap: 0.65rem; }
+.overview-body > p { margin: 0; }
+.summary-content { display: grid; gap: 1rem; min-width: 0; }
+.summary-section h4 { margin: 0 0 0.45rem; font-size: 0.9rem; }
+.summary-section p, .summary-section li { font-size: 0.875rem; line-height: 1.55; }
+.summary-section ul { margin: 0; padding-inline-start: 1.2rem; display: grid; gap: 0.4rem; }
+.summary-overview { margin: 0; }
+.references { list-style: none; margin: 0; padding: 0.6rem 0 0; border-top: 1px solid #796044; display: grid; gap: 0.35rem; }
+.references button { text-align: left; font-size: 0.8rem; }
+small { font-size: 0.7rem; opacity: 0.85; }
+.watch-page .overview-toggle:not(.gradient-button) { box-shadow: none; }
+.overview-collapse { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 220ms ease, opacity 180ms ease; }
+.overview-collapse.expanded { grid-template-rows: 1fr; opacity: 1; }
+.overview-clip { min-height: 0; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .overview-collapse { transition: none; } }
+.overview-toggle { transition: color 160ms ease; }
+/* Override the watch page's generic white hover text on this heading. */
+.watch-page button.overview-toggle:not(.gradient-button):not(:disabled):hover {
+  background: #79675d;
+  color: #50494a;
+  border-color: transparent;
+  box-shadow: none;
+}
+.summary-section {
+  padding: 0.75rem;
+  background: var(--raised);
+  border: 1px solid var(--outline);
+  border-radius: 0.4rem;
+  box-shadow: 0 0 2px #ffffff52, 0 0 6px #ffffff24;
+}
+.summary-card {
+  min-width: 0;
+  padding: 0;
   display: grid;
-  gap: 0.45rem;
+  gap: 0.65rem;
+  color: #fff;
 }
-
-.summary-overview {
-  margin: 0;
+.overview-body .overview-empty { font-size: 0.8rem; line-height: 1.4; }
+.watch-page button.generate-overview:not(.gradient-button) {
+  background: linear-gradient(110deg, #82652e, #815039 52%, #79552f);
+  color: #fff;
+  border: 1px solid #fff;
+  font-weight: 800;
+  box-shadow: 0 0 2px #ffffff52, 0 0 6px #ffffff24;
 }
-
-.summary-section li::marker {
-  color: var(--outline);
+.watch-page button.generate-overview:not(.gradient-button):not(:disabled):hover {
+  background: linear-gradient(110deg, #957538, #955e42 52%, #8b6338);
+  color: #fff;
+  border-color: #fff;
 }
-
-.references {
-  padding-top: 0.6rem;
-  border-top: 1px solid var(--line);
-}
-
-.summary-panel { display:grid; gap:.65rem; padding:.65rem; }
-.overview-heading { margin:0; font:700 clamp(1.45rem,2.5vw,2.1rem)/1.1 Arial,sans-serif; letter-spacing:-.06em; }
-.summary-text { white-space:pre-wrap; overflow-wrap:anywhere; font-size:.9rem; line-height:1.5; }
-small { opacity:.75; }
-.references { list-style:none; margin:0; padding:0; display:grid; gap:.35rem; }
-.references button { text-align:left; font-size:.82rem; }
 </style>

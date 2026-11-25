@@ -30,7 +30,7 @@ test("one whole-video call preserves the overview and maps answers to exact ques
   }) as typeof fetch, async () => {
     const result = await enhanceVideo({ source, items, baseline: "Discussion recap", overview });
     expect(calls).toBe(1);
-    expect(body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "LOW" });
+    expect(body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "MINIMAL" });
     expect(body.generationConfig.maxOutputTokens).toBe(2048);
     expect(body.contents[0].parts[1].text).toContain("quick first-pass result");
     expect(body.contents[0].parts[0]).toEqual({ fileData: { fileUri: "https://www.youtube.com/watch?v=M7lc1UVf-VE" }, videoMetadata: { fps: 0.2 } });

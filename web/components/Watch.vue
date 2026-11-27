@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { closeDialog } from "../dialog-motion.ts";
 import { participantColor, participantColors } from "../participant-color.ts";
 import { formatPlaybackTime } from "../../src/playback-time.ts";
@@ -146,6 +146,88 @@ const discussionActivity = ref(0);
 const discussionSeekRevision = ref(0);
 const watchLayout = ref<HTMLElement>();
 const sidebarPercent = ref(27);
+const videosOpen = ref(true);
+const participantsOpen = ref(true);
+const discussionOpen = ref(true);
+const discussionContentVisible = ref(true);
+const discussionAnimating = ref(false);
+const discussionGroup = ref<HTMLElement>();
+let discussionAnimation: Animation | undefined;
+let discussionMotion = 0;
+watch(discussionOpen, async (open) => {
+  const turn = ++discussionMotion;
+  const group = discussionGroup.value;
+  if (!group) { discussionContentVisible.value = open; return; }
+  const from = group.getBoundingClientRect().height;
+  discussionAnimation?.cancel();
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    discussionContentVisible.value = open; discussionAnimating.value = false; return;
+  }
+  discussionAnimating.value = true;
+  discussionContentVisible.value = true;
+  await nextTick();
+  if (turn !== discussionMotion || !group.isConnected) return;
+  // Opening measures the natural flex height, so Discussion still fills the sidebar.
+  const header = group.querySelector<HTMLElement>(".discussion > header");
+  const to = open ? group.getBoundingClientRect().height : (header?.getBoundingClientRect().height ?? 34) + 1;
+  const animation = group.animate([
+    { height: `${from}px`, flexGrow: 0, flexShrink: 0, flexBasis: "auto" },
+    { height: `${to}px`, flexGrow: 0, flexShrink: 0, flexBasis: "auto" },
+  ], { duration: 220, easing: "ease", fill: "forwards" });
+  discussionAnimation = animation;
+  try { await animation.finished; } catch { return; }
+  if (discussionAnimation !== animation) return;
+  discussionContentVisible.value = open;
+  discussionAnimating.value = false;
+  await nextTick();
+  animation.cancel();
+  if (discussionAnimation === animation) discussionAnimation = undefined;
+});
+const summaryOpen = ref(false);
+const roomSidebar = ref<HTMLElement>();
+const overviewPanel = ref<HTMLElement>();
+const composerSlot = ref<HTMLElement>();
+const overviewHeight = ref<number>();
+const resizingOverview = ref(false);
+function setOverviewHeight(value: number) {
+  const content = overviewPanel.value?.querySelector<HTMLElement>(".overview-scroll");
+  const sidebar = roomSidebar.value;
+  if (!content || !sidebar) return;
+  const group = sidebar.querySelector<HTMLElement>(".discussion-group");
+  const discussion = group?.querySelector<HTMLElement>(".discussion");
+  const reserved = discussionOpen.value
+    ? (discussion ? parseFloat(getComputedStyle(discussion).minHeight) || 128 : 128) + (composerSlot.value?.getBoundingClientRect().height ?? 120) + 12
+    : (group?.querySelector<HTMLElement>(".discussion > header")?.getBoundingClientRect().height ?? 35) + 12;
+  const available = sidebar.getBoundingClientRect().bottom - content.getBoundingClientRect().top - reserved;
+  overviewHeight.value = Math.max(80, Math.min(Math.max(80, available), value));
+}
+function clampOverviewHeight() { if (overviewHeight.value !== undefined) setOverviewHeight(overviewHeight.value); }
+watch([videosOpen, participantsOpen, discussionOpen], () => { void nextTick(clampOverviewHeight); });
+watch(composerSlot, (element, _, cleanup) => {
+  if (!element) return;
+  const observer = new ResizeObserver(clampOverviewHeight);
+  observer.observe(element);
+  cleanup(() => observer.disconnect());
+});
+function resizeOverview(event: PointerEvent) {
+  if (!resizingOverview.value) return;
+  const content = overviewPanel.value?.querySelector<HTMLElement>(".overview-scroll");
+  if (content) setOverviewHeight(event.clientY - content.getBoundingClientRect().top);
+}
+function startOverviewResize(event: PointerEvent) {
+  if (event.button !== 0) return;
+  event.preventDefault(); resizingOverview.value = true;
+  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  resizeOverview(event);
+}
+function stopOverviewResize() { resizingOverview.value = false; }
+function resizeOverviewByKey(event: KeyboardEvent) {
+  if (event.key === "Home") { event.preventDefault(); overviewHeight.value = undefined; }
+  if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+  event.preventDefault();
+  const content = overviewPanel.value?.querySelector<HTMLElement>(".overview-scroll");
+  if (content) setOverviewHeight(content.getBoundingClientRect().height + (event.key === "ArrowDown" ? 16 : -16));
+}
 const resizingSidebar = ref(false);
 function resizeSidebar(event: PointerEvent) {
   if (!resizingSidebar.value || !watchLayout.value) return;
@@ -173,7 +255,7 @@ function applyLocalAction({ anchor, thread }: { anchor?: number; thread?: string
   if (anchor !== undefined && Number.isFinite(anchor) && anchor >= 0) {
     sendControl("SEEK", anchor);
   }
-  if (thread) focusRequest.value = { thread, id: ++focusId };
+  if (thread) focusRequest.value = { thread, id: ++focusId, holdReading: true };
 }
 async function leaveShared(action: { anchor?: number; thread?: string }) {
   const entry = activeEntry.value;
@@ -200,14 +282,14 @@ async function answerLocalWatch(confirmed: boolean) {
   await run(() => leaveShared(action));
 }
 function jumpToThread(anchor: number) { return sendControl("SEEK", anchor); }
-function openSummaryThread(thread: string, anchor: number) {
-  focusRequest.value = { thread, id: ++focusId };
-  return jumpToThread(anchor);
+function openSummaryThread(thread: string) {
+  discussionOpen.value = true;
+  focusRequest.value = { thread, id: ++focusId, holdReading: true };
 }
 function commentPosted(result: { entry: string; thread: string; message: string }) {
   if (result.entry !== activeEntry.value) return;
   discussionRevision.value++;
-  focusRequest.value = { thread: result.thread, message: result.message, id: ++focusId };
+  focusRequest.value = { thread: result.thread, message: result.message, id: ++focusId, holdReading: true };
 }
 const inviteLink = computed(() => {
   if (!props.inviteCode) return "";
@@ -807,16 +889,20 @@ async function answerEndWatch(confirmed: boolean) {
 }
 
 onMounted(() => {
+  window.addEventListener("resize", clampOverviewHeight);
   window.addEventListener("keydown", keyboard);
   progressTimer = window.setInterval(updateProgress, 250);
   emit("connection", connection);
   void enter();
 });
 onBeforeUnmount(() => {
+  discussionMotion++;
+  discussionAnimation?.cancel();
   stopped = true;
   playerGeneration++;
   window.clearInterval(timer);
   window.clearInterval(progressTimer);
+  window.removeEventListener("resize", clampOverviewHeight);
   window.removeEventListener("keydown", keyboard);
   window.clearTimeout(noticeTimer);
   window.clearTimeout(copyTimer);
@@ -827,7 +913,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section ref="watchLayout" aria-label="Watch" class="watch-layout"
-    :class="{ resizing: resizingSidebar }" :style="{ '--sidebar-width': sidebarPercent + '%' }">
+    :class="{ resizing: resizingSidebar || resizingOverview }" :style="{ '--sidebar-width': sidebarPercent + '%' }">
     <header class="watch-header">
       <div class="watch-menu" @keydown.esc.stop="menuOpen = false; menuTrigger?.focus()">
         <button ref="menuTrigger" class="watch-brand gradient-button" type="button" :aria-expanded="menuOpen"
@@ -970,9 +1056,10 @@ onBeforeUnmount(() => {
       tabindex="0" @pointerdown="startSidebarResize" @pointermove="resizeSidebar"
       @pointerup="endSidebarResize" @pointercancel="endSidebarResize" @lostpointercapture="endSidebarResize"
       @keydown="resizeSidebarByKey" @dblclick="sidebarPercent = 27" />
-    <aside v-if="state" class="watch-sidebar" aria-label="Room details">
-      <section class="video-panel" aria-labelledby="watched-videos-heading">
-        <h3 id="watched-videos-heading">Room videos</h3>
+    <aside v-if="state" ref="roomSidebar" class="watch-sidebar" :style="{ '--overview-height': overviewHeight === undefined ? undefined : overviewHeight + 'px' }" aria-label="Room details">
+      <section class="video-panel" :class="{ 'section-closed': !videosOpen }" aria-labelledby="watched-videos-heading">
+        <h3 id="watched-videos-heading"><button class="section-toggle" type="button" :aria-expanded="videosOpen" @click="videosOpen = !videosOpen"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>Room videos</button></h3>
+        <div class="sidebar-collapse" @transitionend.self="clampOverviewHeight" :class="{ expanded: videosOpen }" :inert="!videosOpen"><div class="sidebar-clip"><div class="sidebar-content">
         <p v-if="!entries.length">No videos have been added to this room.</p>
         <ul v-if="entries.length" ref="videoList" class="video-list">
           <li v-for="(item, index) in entries" :key="item.entry" :data-entry="item.entry">
@@ -984,9 +1071,11 @@ onBeforeUnmount(() => {
         </ul>
         <button v-if="state.isOwner" class="add-video gradient-button" type="button" @click="addingVideo = true">Add video +</button>
         <AddVideoDialog v-if="addingVideo" :save="addVideo" @close="addingVideo = false" />
+        </div></div></div>
       </section>
-      <section aria-labelledby="participants-heading">
-        <h3 id="participants-heading">Participants</h3>
+      <section :class="{ 'section-closed': !participantsOpen }" aria-labelledby="participants-heading">
+        <h3 id="participants-heading"><button class="section-toggle" type="button" :aria-expanded="participantsOpen" @click="participantsOpen = !participantsOpen"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>Participants</button></h3>
+        <div class="sidebar-collapse" @transitionend.self="clampOverviewHeight" :class="{ expanded: participantsOpen }" :inert="!participantsOpen"><div class="sidebar-clip"><div class="sidebar-content">
         <ul class="participants">
           <li v-for="member in roster" :key="member.participant">
             <div class="participant-identity">
@@ -1004,18 +1093,27 @@ onBeforeUnmount(() => {
               @click="chooseOwner(member.participant)">{{ ownerSuccessor === member.participant ? "Confirm" : "Choose" }}</button>
           </li>
         </ul>
+        </div></div></div>
       </section>
-      <section v-if="activeEntry" class="overview-panel" aria-label="AI overview">
+      <section v-if="activeEntry" ref="overviewPanel" class="overview-panel" aria-label="AI overview">
         <DiscussionSummary :room="room" :participant="participant" :entry="activeEntry!"
-          :revision="discussionRevision" @open-thread="openSummaryThread" />
+          :revision="discussionRevision" @expanded="summaryOpen = $event" @open-thread="openSummaryThread" @seek-video="jumpToThread" />
       </section>
-      <Discussion v-if="activeEntry" :room="room" :participant="participant" :entry="activeEntry"
+      <div v-if="activeEntry && summaryOpen" class="overview-divider" role="separator" aria-label="Resize AI overview" aria-orientation="horizontal"
+        :aria-valuenow="Math.round(overviewHeight ?? 250)" :aria-valuemin="80" tabindex="0"
+        @pointerdown="startOverviewResize" @pointermove="resizeOverview" @pointerup="stopOverviewResize" @pointercancel="stopOverviewResize" @lostpointercapture="stopOverviewResize"
+        @keydown="resizeOverviewByKey" @dblclick="overviewHeight = undefined" />
+      <section v-if="activeEntry" ref="discussionGroup" class="discussion-group" :class="{ collapsed: !discussionOpen && !discussionAnimating, 'discussion-animating': discussionAnimating }" aria-label="Discussion panel">
+      <Discussion v-if="activeEntry" :expanded="discussionOpen" :content-visible="discussionContentVisible" @toggle="discussionOpen = !discussionOpen" :room="room" :participant="participant" :entry="activeEntry"
           :connection="connection" :position="localPosition" :live="!localPlayback"
           :participant-colors="roomColors" :focus-request="focusRequest" :revision="discussionRevision" :activity="discussionActivity" :seek-revision="discussionSeekRevision"
           @seek="jumpToThread" @changed="discussionRevision++" />
+      <div v-show="discussionContentVisible" :inert="!discussionOpen" ref="composerSlot" class="discussion-composer-slot">
       <DiscussionComposer v-if="activeEntry" :room="room" :participant="participant" :entry="activeEntry"
         :connection="connection" :live="!localPlayback" :position="localPosition"
         :get-position="discussionPosition" @posted="commentPosted" @activity="discussionActivity++" />
+      </div>
+      </section>
     </aside>
     <dialog ref="endWatchDialog" class="watch-dialog" aria-labelledby="end-watch-heading"
       aria-describedby="end-watch-warning" @cancel.prevent="answerEndWatch(false)">
@@ -1105,7 +1203,30 @@ onBeforeUnmount(() => {
 .watch-sidebar > section { flex-shrink: 0; min-width: 0; padding: 1rem; border-bottom: 1px solid var(--line); }
 .watch-sidebar > .overview-panel { padding: 0; }
 .video-panel { display: flex; flex-direction: column; }
-.watch-sidebar > :deep(.discussion) { margin-block-start: 0.6rem; margin-inline: 0; flex: 1 1 auto; height: auto; min-height: 10rem; border-top: 1px solid var(--line); }
+.watch-sidebar > section + section { margin-block-start: 0.6rem; }
+.watch-sidebar > .section-closed { padding-bottom: 0; }
+.watch-sidebar > .section-closed > h3 { margin-bottom: 0; }
+.watch-sidebar > .discussion-group { padding: 0; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; border: 0; margin-block-start: 0.6rem; }
+.discussion-group.discussion-animating { overflow: hidden; }
+.watch-sidebar > .discussion-group.collapsed { flex: none; }
+.discussion-group > :deep(.discussion) { flex: 1; min-height: 8rem; border-top: 1px solid var(--line); }
+.discussion-group.collapsed > :deep(.discussion) { flex: none; min-height: 0; }
+.discussion-composer-slot { flex: none; padding: 1rem; border-top: 1px solid var(--line); }
+.sidebar-collapse { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 200ms ease, opacity 180ms ease; }
+.sidebar-collapse.expanded { grid-template-rows: 1fr; opacity: 1; }
+.sidebar-clip { min-height: 0; overflow: hidden; }
+.sidebar-content > .video-list { margin-block: 0.5rem; }
+.sidebar-content > p { margin: 0.35rem 0 0; }
+.sidebar-content { display: flex; flex-direction: column; min-width: 0; }
+.watch-page button.section-toggle:not(.gradient-button) { display: flex; align-items: center; gap: 0.25rem; width: 100%; padding: 0; border: 0; background: transparent; box-shadow: none; font: inherit; letter-spacing: inherit; color: inherit; text-align: left; }
+.watch-page button.section-toggle:not(.gradient-button):hover { color: #50494a; background: transparent; box-shadow: none; }
+.section-toggle svg { flex: none; width: 0.65em; height: 0.65em; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; transition: transform 160ms ease; }
+.section-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+.overview-divider { flex: none; height: 8px; position: relative; cursor: row-resize; touch-action: none; margin-block-start: 0.2rem; }
+.overview-divider::after { content: ""; position: absolute; inset: 3px 0; background: var(--line); transition: background-color 160ms ease; }
+.overview-divider:hover::after, .overview-divider:focus-visible::after { background: #c3a1b6; }
+.overview-divider + .discussion-group { margin-block-start: 0; }
+@media (prefers-reduced-motion: reduce) { .sidebar-collapse, .section-toggle svg { transition: none; } }
 
 .video-list, .participants { list-style: none; padding: 0; }
 .video-list { max-height: 12rem; display: grid; gap: 0.35rem; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
@@ -1172,7 +1293,7 @@ form, select { margin-block: 0.5rem; }
 @media (max-width: 760px) {
   .watch-layout { grid-template-columns: minmax(0, 1fr); }
   .sidebar-divider { display: none; }
-  .watch-sidebar > :deep(.discussion) { flex: none; height: 22rem; }
+  .watch-sidebar > .discussion-group:not(.collapsed) { flex: none; height: 30rem; }
   .watch-sidebar { height: auto; border-inline-start: 0; border-top: 1px solid var(--line); }
 }
 .watch-page button.live-watch-button.gradient-button {

@@ -1,0 +1,144 @@
+$ bun test
+bun test v1.4.2 (50a8a8387)
+
+tests/Watch.integration.test.ts:
+(pass) both viewers see accepted controls and departure ends shared playback [221.37ms]
+(pass) owner permissions and room membership gate the watch endpoints [193.54ms]
+(pass) a missing title keeps the video usable by ID [98.24ms]
+(pass) the owner can transfer before or during a live watch and both accounts keep history [236.85ms]
+(pass) a preview title is saved even if the server cannot look it up [98.92ms]
+(pass) owner departure leaves the watch running until the last viewer leaves [130.80ms]
+(pass) owner expiry leaves the watch running until the remaining viewer expires [123.97ms]
+
+tests/SummaryFormat.test.ts:
+(pass) recap order excludes legacy overview and preserves per-claim citations [0.18ms]
+(pass) unassigned references are not falsely attached to a claim [0.01ms]
+(pass) removing inline citations does not leave a space before punctuation [0.02ms]
+
+tests/Sessioning.test.ts:
+(pass) a session starts, resolves across instances, and becomes unavailable after ending [9.45ms]
+(pass) current extends the idle window without extending absolute expiry [10.31ms]
+(pass) unknown and exactly idle-expired sessions cannot be used, replaced, or ended [9.60ms]
+(pass) only one replacement can redeem the old token [10.98ms]
+
+tests/RoomJoining.test.ts:
+(pass) a guest visit can be claimed without changing the participant [11.07ms]
+(pass) saved rooms follow activity order and concurrent joins reuse a participant [11.26ms]
+(pass) invalid requests do not grant room access [6.05ms]
+(pass) claiming a guest visit reuses the account's existing name and participant [8.35ms]
+(pass) legacy saved visits and duplicate IDs survive consolidation [6.57ms]
+(pass) room activity and joins have separate timestamps [6.61ms]
+
+tests/Rooms.integration.test.ts:
+(pass) guest joins, signs in to save the visit, then reopens it with the new cookie [275.38ms]
+(pass) only accounts can host and a guest can only register and claim its own visit [243.27ms]
+(pass) an invite requires a name only for a new participant [110.54ms]
+
+tests/Presence.test.ts:
+(pass) multiple tabs count once and only their viewer can leave them [16.63ms]
+(pass) heartbeats are scoped and expired groups stay due until closed [13.37ms]
+(pass) explicit close prevents a new group from taking connections [5.43ms]
+(pass) reusable presence can be renewed after everyone leaves or expires [11.08ms]
+
+tests/Watching.test.ts:
+(pass) opening the same scope is idempotent across instances [12.48ms]
+(pass) playing, seeking, and pausing update the anchor and emit ordered control events [10.46ms]
+(pass) switching entries resets playback and preserves every entry after ending [15.69ms]
+(pass) refused commands leave playback and notifications intact [10.43ms]
+(pass) concurrent changes share one revision and notification history is bounded [103.64ms]
+
+tests/VideoEnhancement.test.ts:
+(pass) one whole-video call preserves the overview and maps answers to exact questions [1.00ms]
+(pass) transcription cannot answer inspiration, counts or non-question reactions [0.07ms]
+(pass) wording timestamps cannot cite a different part of the video [0.06ms]
+(pass) uncached overview still uses the whole video without any clip pass [0.07ms]
+[Summarizing video] gemini-3.5-flash-lite: HTTP 503 after 0ms: Temporarily unavailable
+[Summarizing video] Video attempt failed (Error); using one text-only fallback.
+(pass) 503 falls back immediately to text, answers conceptual questions without fabricated video context [0.52ms]
+[Summarizing video] gemini-3.5-flash-lite: HTTP 503 after 0ms: 
+[Summarizing video] Video attempt failed (Error); using one text-only fallback.
+(pass) fallback cannot manufacture lyrics, counts or video timestamps [0.28ms]
+[Summarizing video] gemini-3.5-flash-lite: HTTP 403 after 0ms: 
+(pass) permission errors do not trigger fallback or repeated requests [0.05ms]
+[Summarizing video] Video attempt failed (Error); using one text-only fallback.
+(pass) video timeout uses an independent shorter fallback deadline [0.29ms]
+
+tests/Discussion.integration.test.ts:
+(pass) members revisit a thread on its saved video entry [114.73ms]
+(pass) live posts require the selected video and the participant's player connection [147.03ms]
+(pass) room access and video ownership guard posts, thread links, and summaries [121.54ms]
+[Summarizing] The overview did not cite its original discussions.
+(pass) overview cites original threads and failed regeneration preserves the previous one [129.76ms]
+(pass) only the author can edit or delete, and changes clear the old overview [141.71ms]
+[Summarizing] Generate a current discussion overview before enhancing it.
+(pass) new threads and replies hide recap and answers but retain video overview [124.45ms]
+
+tests/Accounts.integration.test.ts:
+(pass) a browser registers, resolves its identity, and signs out [78.26ms]
+(pass) failed sign-in preserves the guest and successful sign-in rotates the cookie [182.56ms]
+(pass) registration replaces an existing guest session [81.26ms]
+(pass) an origin mismatch or a token supplied in the request body cannot authenticate [19.76ms]
+
+tests/Discussing.test.ts:
+(pass) threads persist and replies retain author, saved name, parent, context and ordering [7.89ms]
+(pass) invalid text, invalid timestamp, and absent parents are rejected without mutation [1.17ms]
+(pass) two identical timestamps on different entries do not share discussions [4.49ms]
+(pass) a nested reply follows its parent even when the clock has not advanced [6.74ms]
+(pass) concurrent replies from separate instances are retained [8.01ms]
+(pass) authors can edit or delete their comments without removing replies [7.82ms]
+(pass) saving unchanged text preserves edit metadata [6.79ms]
+(pass) deleting a leaf removes it from storage and removes empty deleted ancestors [6.37ms]
+(pass) deleting a standalone opening message removes the thread [5.56ms]
+(pass) concurrent reply and deletion never leave an orphan reply [5.16ms]
+
+tests/Summarizing.test.ts:
+(pass) generates summary from existing discussion and saves references [5.73ms]
+[Summarizing] There are no discussions to summarize yet.
+[Summarizing] Summary generator failed. Please retry.
+(pass) empty discussions and generator errors do not erase prior summary [5.72ms]
+[Summarizing] The overview did not cite its original discussions.
+(pass) only cited input threads are saved as references [7.05ms]
+[Summarizing] There are no discussions to summarize yet.
+(pass) deleted text is excluded and invalidating removes an older overview [6.42ms]
+[Summarizing] The discussion or generation changed. Generate the overview again.
+(pass) an in-flight overview cannot restore text after invalidation [4.83ms]
+[Summarizing] The discussion changed. Generate the overview again.
+(pass) a version captured before a deletion rejects stale discussion items [5.13ms]
+[Summarizing] Gemini finish reason: MAX_TOKENS; retrying once.
+[Summarizing] Gemini finish reason: MAX_TOKENS. Please retry.
+[Summarizing] Gemini HTTP 403. Please retry.
+(pass) Gemini structured output preserves references even without inline citations [514.78ms]
+(pass) enhancement preserves the baseline, caches video context, and hides all stale answers [26.44ms]
+(pass) read fingerprint hides new posts even before the invalidation action runs [15.28ms]
+[Summarizing] The discussion or overview changed while enhancing. Generate it again.
+(pass) late enhancement cannot attach to a regenerated baseline [15.77ms]
+[Summarizing] Enhancement failed. Your discussion summary has been kept. Please try again.
+[Summarizing] The video service returned invalid evidence or references.
+(pass) failed enhancement preserves baseline and invalid references are refused [11.41ms]
+[Summarizing] The discussion or generation changed. Generate the overview again.
+(pass) later baseline generation wins even if an older request finishes last [9.31ms]
+[Summarizing] The discussion or overview changed while enhancing. Generate it again.
+(pass) discussion changes during video analysis cannot restore stale answers [9.51ms]
+[Summarizing] Gemini HTTP 503; retrying once.
+(pass) one transient Gemini 503 is retried and grouped citations or math do not invalidate structured references [510.20ms]
+[Summarizing] Gemini HTTP 503; retrying once.
+[Summarizing] Gemini HTTP 503. Please retry.
+(pass) persistent Gemini 503 stops after one retry and preserves the last good recap [517.86ms]
+(pass) older verification formats expose Enhance again without discarding discussion or video overview [16.23ms]
+[Summarizing] Generate a current discussion overview before enhancing it.
+(pass) an older recap prompt enables regeneration while preserving cached video context [19.40ms]
+(pass) text-only fallback saves answers without inventing a video overview [16.00ms]
+
+tests/health.test.ts:
+(pass) the scaffold reports healthy with no database configured [0.18ms]
+
+tests/Authenticating.test.ts:
+(pass) registers, authenticates, and reads the normalized username across instances [125.92ms]
+(pass) invalid registration leaves the username available [109.61ms]
+(pass) a duplicate username cannot replace the existing password [417.54ms]
+(pass) concurrent registrations have one winner and store independently salted verifiers [119.81ms]
+
+ 83 pass
+ 0 fail
+ 557 expect() calls
+Ran 83 tests across 14 files. [5.98s]

@@ -69,11 +69,13 @@ const StartThread = endpoint("/discussion/start-thread",
         where(DiscussionAccess({ room, participant, subject, entry }).is({ name, canonical }),
           compute(computations.isHistorical, { mode }, { historical: true }))
           .then(Discussing.startThread({ topic: entry, author: canonical, name, anchor, text, context: mode }).responds({ thread, message }))
+          .then(Summarizing.invalidate({ topic: entry }).responds({}))
           .then(respond({ thread, message })).named("historical"),
         where(DiscussionAccess({ room, participant, subject, entry }).is({ name, canonical, live: true }),
           compute(computations.isHistorical, { mode }, { historical: false }),
           Presence._connectionPresence({ scope: room, subject: canonical, connection }).is({ present: true }))
           .then(Discussing.startThread({ topic: entry, author: canonical, name, anchor, text, context: mode }).responds({ thread, message }))
+          .then(Summarizing.invalidate({ topic: entry }).responds({}))
           .then(respond({ thread, message })).named("live"),
         where(no(DiscussionAccess({ room, participant, subject, entry }).is({})))
           .then(respond({ error: "FORBIDDEN" })).named("denied"),
@@ -95,13 +97,15 @@ const Reply = endpoint("/discussion/reply",
         where(Discussing._message({ message: parent }).is({ topic: entry }),
           DiscussionAccess({ room, participant, subject, entry }).is({ name, canonical }),
           compute(computations.isHistorical, { mode }, { historical: true }))
-          .then(Discussing.reply({ parent, author: canonical, name, text, context: mode }).responds({ message }))
+          .then(Discussing.reply({ parent, author: canonical, name, text, context: mode }).responds({ message, topic: entry }))
+          .then(Summarizing.invalidate({ topic: entry }).responds({}))
           .then(respond({ message })).named("historical"),
         where(Discussing._message({ message: parent }).is({ topic: entry }),
           DiscussionAccess({ room, participant, subject, entry }).is({ name, canonical, live: true }),
           compute(computations.isHistorical, { mode }, { historical: false }),
           Presence._connectionPresence({ scope: room, subject: canonical, connection }).is({ present: true }))
-          .then(Discussing.reply({ parent, author: canonical, name, text, context: mode }).responds({ message }))
+          .then(Discussing.reply({ parent, author: canonical, name, text, context: mode }).responds({ message, topic: entry }))
+          .then(Summarizing.invalidate({ topic: entry }).responds({}))
           .then(respond({ message })).named("live"),
         where(no(Discussing._message({ message: parent }).is({})))
           .then(respond({ error: "THREAD_UNAVAILABLE" })).named("missing"),

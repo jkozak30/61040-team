@@ -65,7 +65,7 @@ export class DiscussingConcept<Topic extends string = string, Author extends str
       { returnDocument: "after" },
     );
     if (!updated) throw new ThreadUnavailable("This discussion is no longer available.");
-    return { message };
+    return { message, topic: thread.topic };
   }
 
   async editMessage({ message, author, text }: { message: Message; author: Author; text: string }) {

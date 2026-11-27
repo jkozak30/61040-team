@@ -1,3 +1,4 @@
+import type { VideoEnhancer } from "../src/video-enhancement.ts";
 import { afterAll, beforeAll, beforeEach, expect, test } from "bun:test";
 import { createGateway } from "@mit-sdg/sync-engine/boundary";
 import { createHttpHandler } from "@mit-sdg/sync-engine-http/handler";
@@ -8,6 +9,7 @@ import { openTestDb, type TestDb } from "./test-db.ts";
 let db: TestDb;
 let api: ReturnType<typeof createHttpHandler>;
 let generate: (prompt: string) => Promise<string>;
+let enhance: VideoEnhancer;
 const password = "a long test passphrase";
 
 beforeAll(async () => { db = await openTestDb(); });
@@ -17,7 +19,11 @@ beforeEach(async () => {
     const thread = prompt.match(/"thread":"([^"]+)"/)?.[1];
     return `The group discussed pruning [${thread}].`;
   };
-  const application = assembleApplication(db.db, async () => "Lecture", (prompt) => generate(prompt));
+  enhance = async ({ source, items, overview }) => ({
+    videoOverview: overview ?? { videoId: source.id, text: "Video about pruning.", generatedAt: new Date() },
+    suggestedAnswers: [{ thread: String(items[0]!.thread), text: "The video explains the answer.", timestamps: [25] }], generatedAt: new Date(),
+  });
+  const application = assembleApplication(db.db, async () => "Lecture", (prompt) => generate(prompt), (input) => enhance(input));
   api = createHttpHandler({ application, gateway: createGateway({ application }), policy });
 });
 afterAll(async () => { await db?.close(); });
@@ -135,16 +141,43 @@ test("only the author can edit or delete, and changes clear the old overview", a
   expect((await post("/discussion/delete-message", { ...host, message: reply.message }, hostCookie)).status).toBe(403);
   expect((await post("/discussion/edit-message", { ...host, message: opened.message, text: "  " }, hostCookie)).status).toBe(400);
   await ok("/discussion/edit-message", { ...host, message: opened.message, text: "  Revised question  " }, hostCookie);
-  expect((await ok("/summary/read", { ...guest, entry: first }, guestCookie)).summary).toBeNull();
+  expect((await ok("/summary/read", { ...guest, entry: first }, guestCookie)).summary.stale).toBe(true);
   let thread = await ok("/discussion/thread", { ...guest, thread: opened.thread }, guestCookie);
   expect(thread.messages[0]).toMatchObject({ text: "Revised question", editedAt: expect.any(String) });
   expect(thread.messages[1]).toMatchObject({ message: reply.message, parent: opened.message, text: "Answer" });
   await ok("/summary/request", { ...guest, entry: first }, guestCookie);
   await ok("/discussion/delete-message", { ...host, message: opened.message }, hostCookie);
-  expect((await ok("/summary/read", { ...host, entry: first }, hostCookie)).summary).toBeNull();
+  expect((await ok("/summary/read", { ...host, entry: first }, hostCookie)).summary.stale).toBe(true);
   thread = await ok("/discussion/thread", { ...guest, thread: opened.thread }, guestCookie);
   expect(thread.messages[0]).toMatchObject({ text: "", deletedAt: expect.any(String) });
   expect(thread.messages[1]).toMatchObject({ message: reply.message, parent: opened.message, text: "Answer" });
   expect((await post("/discussion/edit-message", { ...host, message: opened.message, text: "Restore" }, hostCookie)).status).toBe(404);
   expect((await post("/discussion/delete-message", { ...host, message: opened.message }, hostCookie)).status).toBe(404);
+});
+
+
+test("new threads and replies hide recap and answers but retain video overview", async () => {
+  const { hostCookie, guestCookie, host, guest, first } = await setup();
+  const opened = await ok("/discussion/start-thread", { ...host, entry: first, anchor: 25, text: "Why prune?", mode: "HISTORICAL" }, hostCookie);
+  const baseline = await ok("/summary/request", { ...host, entry: first }, hostCookie);
+  let actualVideo = "";
+  const original = enhance;
+  enhance = async input => { actualVideo = input.source.id; return original(input); };
+  const enhanced = await ok("/summary/enhance", { ...guest, entry: first, expectedBaseline: baseline.summary.baselineId }, guestCookie);
+  expect(actualVideo).toBe("M7lc1UVf-VE");
+  expect(enhanced.summary.text).toBe(baseline.summary.text);
+  expect(enhanced.summary.enhancement.suggestedAnswers).toHaveLength(1);
+  const outsider = cookie(await post("/auth/guest", {}));
+  expect((await post("/summary/enhance", { ...guest, entry: first, expectedBaseline: baseline.summary.baselineId }, outsider)).status).toBe(403);
+  await ok("/discussion/reply", { ...guest, parent: opened.message, text: "Another question", mode: "HISTORICAL" }, guestCookie);
+  const stale = (await ok("/summary/read", { ...host, entry: first }, hostCookie)).summary;
+  expect(stale.stale).toBe(true);
+  expect(stale.text).toBeUndefined();
+  expect(stale.enhancement).toBeUndefined();
+  expect(stale.videoOverview).toEqual(enhanced.summary.videoOverview);
+  expect(stale.enhanced).toBe(true);
+  expect((await post("/summary/enhance", { ...host, entry: first, expectedBaseline: baseline.summary.baselineId }, hostCookie)).status).toBe(409);
+  await ok("/summary/request", { ...host, entry: first }, hostCookie);
+  await ok("/discussion/start-thread", { ...guest, entry: first, anchor: 50, text: "A new topic", mode: "HISTORICAL" }, guestCookie);
+  expect((await ok("/summary/read", { ...host, entry: first }, hostCookie)).summary.stale).toBe(true);
 });

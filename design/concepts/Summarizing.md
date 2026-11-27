@@ -2,11 +2,11 @@
 
 ## Purpose
 
-Help students revisit the important points in a saved video discussion without replacing original messages.
+Help students revisit a video discussion and optionally understand it using video evidence and established subject knowledge, without replacing original messages.
 
 ## Principle
 
-After discussing a recorded lecture, Bob requests an AI overview of questions and answers. The overview cites the original thread identifiers. The generated overview is saved and remains available when a later generation fails.
+Bob generates a recap of the group's discussion, then enhances it with a separately styled video overview and suggested answers linked to threads, with video timestamps only when supported by video evidence. If video processing fails, a bounded text-only fallback may answer conceptual questions without creating a video overview. A new comment makes discussion-derived content stale. Bob regenerates it; the video overview can be reused. Failed generation never replaces a valid result.
 
 ## Types
 
@@ -15,10 +15,19 @@ external Topic
   A saved video entry.
 
 opaque SummaryItems
-  Verified discussion thread identifiers, anchors, and their original messages.
+  Verified discussion threads, anchors, and original messages in stable order.
+
+opaque VideoOverview
+  Video-only text, video identity, and generation time.
+
+opaque VideoSource
+  A verified saved video source, including its provider and video identifier.
 
 opaque SummaryResult
-  Generated text, referenced thread identities, and generation time.
+  A discussion recap with baseline identity, source snapshot fingerprint and version, recap format, thread references, and generation time; optionally separate video-derived additions.
+
+opaque SummaryView
+  A current result or a stale marker with a discussion-change or format-update reason, enhancement preference, and optional cached video overview. Stale views contain no discussion text or suggested answers.
 ```
 
 ## State
@@ -27,28 +36,44 @@ opaque SummaryResult
 a set of Summaries with
   a topic Topic
   a version Number
+  a generation Number
   an optional result SummaryResult
+  a hadSummary Flag
+  an enhanced Flag
+  an optional videoOverview VideoOverview
 
-Rule: Each topic has at most one saved summary, replaced only by a successful generation for its current version.
-Rule: Invalidating a topic removes its saved result and advances its version, so an earlier generation cannot restore it.
+Rule: A generation saves only for its captured version and generation claim; a later request supersedes an earlier request.
+Rule: Enhancement saves only for the exact baseline identity, source fingerprint and version it enhanced.
+Rule: Reading compares current source items with the saved fingerprint, so changed discussion is never returned as current.
+Rule: Invalidating advances the version and removes all discussion-derived text and answers. The video-only overview and enhancement preference remain.
+Rule: Existing results without source metadata or with an older recap format are stale until regenerated; cached video-only context remains available.
 ```
 
 ## Actions
 
 ```actions
-request(topic: Topic, items: SummaryItems, expectedVersion: Number) : returns (summary: SummaryResult)
-  where there are no discussion items, too many items, text generation fails, or the topic's version differs from expectedVersion
+request(topic: Topic, items: SummaryItems, expectedVersion: Number) : returns (summary: SummaryView)
+  where there are no valid discussion items, too many items, generation fails, or the version or generation claim changes
   then
-    refuses SUMMARY_UNAVAILABLE "Could not generate the overview. Try again after discussion."
-  where valid discussion items are supplied and text generation succeeds
+    refuses SUMMARY_UNAVAILABLE "Could not generate a current discussion overview."
+  where verified items are supplied and generation succeeds for the current claim and version
   then
-    save the generated text with original thread references and current server time only if the topic still has expectedVersion;
+    save a new discussion recap with original thread references, fingerprint, unique baseline identity and time; retain the video-only overview and enhancement preference
+    returns summary
+
+enhance(topic: Topic, items: SummaryItems, source: VideoSource, expectedBaseline: String) : returns (summary: SummaryView)
+  where the baseline is absent or stale, the source is unsupported, evidence or references are invalid, generation fails, or the baseline or version changes
+  then
+    refuses SUMMARY_UNAVAILABLE "Could not enhance this overview."
+  where the exact current baseline is supplied and video analysis or conceptual-answer fallback succeeds
+  then
+    retain the discussion recap unchanged; attach an optional video overview and supported suggested answers with thread identities; cite video timestamps only for video-supported answers; reuse an existing overview for the same video; remember that enhancement was enabled
     returns summary
 
 invalidate(topic: Topic) : returns ()
   where true
   then
-    remove any saved summary for the topic and advance its version
+    remove the discussion recap and suggested answers and advance the version, preserving video-only context and enhancement preference
     returns
 ```
 
@@ -56,8 +81,8 @@ invalidate(topic: Topic) : returns ()
 
 ```queries
 _version(topic: Topic) : optional (version: Number)
-  Answers the current version of the topic, or zero before its first summary.
+  Answers the current version, or zero before the first invalidation or generation.
 
-_summary(topic: Topic) : optional (summary: SummaryResult)
-  Answers the last successful generated overview for the entry, if any.
+_summary(topic: Topic, items: SummaryItems) : optional (summary: SummaryView)
+  Answers the current overview or a stale marker with video-only context; never returns stale recap text or suggested answers.
 ```

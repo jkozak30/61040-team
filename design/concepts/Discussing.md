@@ -72,7 +72,7 @@ startThread(topic: Topic, author: Author, name: String, anchor: Anchor, text: St
     create its opening message with no parent, author, name, trimmed text, context, and current server time
     returns thread, message
 
-reply(parent: Message, author: Author, name: String, text: String, context: Context) : returns (message: Message)
+reply(parent: Message, author: Author, name: String, text: String, context: Context) : returns (message: Message, topic: Topic)
   where parent is unknown
   then
     refuses THREAD_UNAVAILABLE "This discussion is no longer available."
@@ -82,7 +82,7 @@ reply(parent: Message, author: Author, name: String, text: String, context: Cont
   where parent exists and the text and name are valid
   then
     create a message in the parent's thread with that parent, author, name, trimmed text, context, and current server time
-    returns message
+    returns message, topic
 
 editMessage(message: Message, author: Author, text: String) : returns (message: Message, topic: Topic, changed: Flag)
   where the message is missing, deleted, or belongs to another author

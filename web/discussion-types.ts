@@ -20,5 +20,6 @@ export type DiscussionFocus = {
   thread: string;
   message?: string;
   id: number;
+  holdReading?: boolean;
 };
 
